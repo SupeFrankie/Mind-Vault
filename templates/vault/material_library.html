@@ -1,0 +1,13 @@
+{% extends "base.html" %}{% block title %}Library{% endblock %}
+{% block content %}<h1 class="text-2xl font-bold">Library</h1>
+<form method="get" class="mb-4">
+  <input type="search" name="q" value="{{ params.q }}" placeholder="Search title, notes, tags">
+  <select name="kind"><option value="">All types</option>{% for v, l in kinds %}<option value="{{ v }}" {% if params.kind == v %}selected{% endif %}>{{ l }}</option>{% endfor %}</select>
+  <select name="course"><option value="">All courses</option>{% for c in courses %}<option value="{{ c.pk }}" {% if params.course == c.pk|stringformat:"s" %}selected{% endif %}>{{ c }}</option>{% endfor %}</select>
+  <select name="tag"><option value="">All tags</option>{% for t in tags %}<option value="{{ t.name }}" {% if params.tag == t.name %}selected{% endif %}>{{ t.name }}</option>{% endfor %}</select>
+  <button type="submit">Filter</button>
+</form>
+<p><a href="{% url 'vault:material_create' %}">+ Add material</a></p>
+<ul>{% for m in page %}<li><a href="{% url 'vault:material_detail' m.pk %}">{{ m.title }}</a> <small>{{ m.get_kind_display }} · {{ m.unit.course }} / {{ m.unit }}</small>
+  {% for t in m.tags.all %}<span>#{{ t.name }}</span>{% endfor %}</li>{% empty %}<li>No materials match.</li>{% endfor %}</ul>
+{% include "partials/pagination.html" %}{% endblock %}

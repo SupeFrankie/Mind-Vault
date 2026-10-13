@@ -1,0 +1,8 @@
+{% extends "base.html" %}{% block title %}{{ material.title }}{% endblock %}
+{% block content %}<h1 class="text-2xl font-bold">{{ material.title }}</h1>
+<p>{{ material.get_kind_display }} · shared by {{ material.owner.full_name }}</p>
+{% if material.authors or material.doi %}<p>{{ material.authors }} {{ material.publication_year|default:"" }} {% if material.doi %}doi:{{ material.doi }}{% endif %}</p>{% endif %}
+{% if material.has_file %}<p>File: {{ material.original_filename }} ({{ material.file_size|filesizeformat }})
+{% if can_download %}· <a href="{% url 'sharing:shared_download' material.pk %}">Download</a>{% else %}· <em>download not allowed</em>{% endif %}</p>{% endif %}
+{% if material.notes %}<h2 class="mt-4 font-bold">Notes</h2><div class="whitespace-pre-wrap">{{ material.notes }}</div>{% endif %}
+{% if can_edit %}<p><a href="{% url 'sharing:shared_edit' material.pk %}">Edit title and notes</a></p>{% endif %}{% endblock %}

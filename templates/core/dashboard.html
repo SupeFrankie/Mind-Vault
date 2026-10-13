@@ -1,0 +1,13 @@
+{% extends "base.html" %}{% block title %}Dashboard{% endblock %}
+{% block content %}<h1 class="text-2xl font-bold">Welcome, {{ user.get_short_name }}</h1>
+<ul>
+  <li>Semesters: {{ semester_count }}</li><li>Materials: {{ material_count }}</li>
+  <li>Groups: {{ group_count }}</li><li>Shared by me: {{ shared_by_me_count }}</li>
+  <li>Shared with me: {{ shared_with_me_count }}</li>
+</ul>
+<h2 class="mt-4 font-bold">Recent materials</h2>
+{% for m in recent_materials %}<p><a href="{% url 'vault:material_detail' m.pk %}">{{ m.title }}</a> <small>{{ m.unit.course }} / {{ m.unit }}</small></p>
+{% empty %}<p>Nothing yet. <a href="{% url 'vault:semester_create' %}">Create a semester</a> to start.</p>{% endfor %}
+<h2 class="mt-4 font-bold">Recent security events</h2>
+{% for e in recent_events %}<p>{{ e.created_at|date:"d M H:i" }} {{ e.action }} ({{ e.outcome }})</p>{% empty %}<p>None.</p>{% endfor %}
+{% endblock %}

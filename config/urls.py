@@ -1,0 +1,12 @@
+from django.contrib import admin
+from django.urls import include, path
+
+handler403 = "apps.core.views.permission_denied"
+
+urlpatterns = [
+    path("admin/", admin.site.urls),
+    path("accounts/", include("apps.accounts.urls")),
+    path("vault/", include("apps.vault.urls")),
+    path("", include("apps.sharing.urls")),
+    path("", include("apps.core.urls")),
+]

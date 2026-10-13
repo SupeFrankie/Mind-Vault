@@ -1,0 +1,12 @@
+{% extends "base.html" %}{% block title %}{{ group.name }}{% endblock %}
+{% block content %}<h1 class="text-2xl font-bold">{{ group.name }}</h1>
+{% if join_code %}<p>Join code (share it only with classmates): <strong>{{ join_code }}</strong></p>{% endif %}
+<h2 class="mt-4 font-bold">Members</h2>
+<ul>{% for m in memberships %}<li>{{ m.user.full_name }} <small>{{ m.get_role_display }}</small>
+{% if is_owner and m.role != 'owner' %}<form method="post" action="{% url 'sharing:member_remove' group.pk m.user_id %}" class="inline">{% csrf_token %}<button type="submit">Remove</button></form>{% endif %}</li>{% endfor %}</ul>
+<h2 class="mt-4 font-bold">Shared materials</h2>
+<ul>{% for s in shares %}<li><a href="{% url 'sharing:shared_detail' s.material_id %}">{{ s.material.title }}</a> <small>by {{ s.material.owner.full_name }} · {{ s.get_permission_display }}{% if s.allow_download %} · download{% endif %}</small></li>
+{% empty %}<li>Nothing shared yet.</li>{% endfor %}</ul>
+<div class="mt-4">
+{% if is_owner %}<a href="{% url 'sharing:group_delete' group.pk %}">Delete group</a>
+{% else %}<form method="post" action="{% url 'sharing:group_leave' group.pk %}">{% csrf_token %}<button type="submit">Leave group</button></form>{% endif %}</div>{% endblock %}

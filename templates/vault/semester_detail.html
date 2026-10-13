@@ -1,0 +1,5 @@
+{% extends "base.html" %}{% block title %}{{ semester.name }}{% endblock %}
+{% block content %}<h1 class="text-2xl font-bold">{{ semester.name }}</h1>
+<p><a href="{% url 'vault:course_create' semester.pk %}">+ Add course</a> ·
+<a href="{% url 'vault:semester_edit' semester.pk %}">Rename</a> · <a href="{% url 'vault:semester_delete' semester.pk %}">Delete</a></p>
+<ul>{% for c in courses %}<li><a href="{% url 'vault:course_detail' c.pk %}">{{ c }}</a></li>{% empty %}<li>No courses yet.</li>{% endfor %}</ul>{% endblock %}

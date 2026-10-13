@@ -1,0 +1,7 @@
+# Django 5.2 is the current LTS line and supports MySQL 8.0.11+.
+Django>=5.2,<5.3
+# MySQL driver. Needs system libs on Ubuntu: see README (libmysqlclient-dev).
+mysqlclient>=2.2
+python-dotenv>=1.0
+# Serves collected static files in production. Uploads are NOT served by it.
+whitenoise>=6.7

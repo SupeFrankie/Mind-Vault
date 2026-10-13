@@ -1,0 +1,12 @@
+.env
+media/
+.venv/
+__pycache__/
+*.pyc
+db.sqlite3
+staticfiles/
+static/css/output.css
+tailwindcss
+.idea/
+.vscode/
+.DS_Store

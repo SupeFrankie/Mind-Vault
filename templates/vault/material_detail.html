@@ -1,0 +1,10 @@
+{% extends "base.html" %}{% block title %}{{ material.title }}{% endblock %}
+{% block content %}<p><a href="{% url 'vault:unit_detail' material.unit_id %}">&larr; {{ material.unit }}</a></p>
+<h1 class="text-2xl font-bold">{{ material.title }}</h1>
+<p>{{ material.get_kind_display }} · {{ material.unit.course }} / {{ material.unit }}</p>
+{% if material.authors or material.publication_year or material.doi %}<p>{{ material.authors }} {{ material.publication_year|default:"" }}
+{% if material.doi %}<a href="https://doi.org/{{ material.doi }}" rel="noopener noreferrer">doi:{{ material.doi }}</a>{% endif %}</p>{% endif %}
+<p>{% for t in material.tags.all %}#{{ t.name }} {% endfor %}</p>
+{% if material.has_file %}<p>File: {{ material.original_filename }} ({{ material.file_size|filesizeformat }}) · <a href="{% url 'vault:material_download' material.pk %}">Download</a></p>{% endif %}
+{% if material.notes %}<h2 class="mt-4 font-bold">Notes</h2><div class="whitespace-pre-wrap">{{ material.notes }}</div>{% endif %}
+<p class="mt-4"><a href="{% url 'vault:material_edit' material.pk %}">Edit</a> · <a href="{% url 'sharing:share_manage' material.pk %}">Share</a> · <a href="{% url 'vault:material_delete' material.pk %}">Delete</a></p>{% endblock %}

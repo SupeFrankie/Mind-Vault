@@ -1,0 +1,5 @@
+{% extends "base.html" %}{% block title %}Vault{% endblock %}
+{% block content %}<h1 class="text-2xl font-bold">Your vault</h1>
+<p><a href="{% url 'vault:semester_create' %}">+ New semester</a></p>
+<ul>{% for s in semesters %}<li><a href="{% url 'vault:semester_detail' s.pk %}">{{ s.name }}</a></li>
+{% empty %}<li>No semesters yet.</li>{% endfor %}</ul>{% endblock %}

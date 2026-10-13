@@ -1,0 +1,4 @@
+{% extends "base.html" %}{% block title %}Delete {{ label }}{% endblock %}
+{% block content %}<h1 class="text-2xl font-bold">Delete {{ label }}?</h1>
+<p><strong>{{ object }}</strong></p>{% if detail %}<p>{{ detail }}</p>{% endif %}
+<form method="post">{% csrf_token %}<button type="submit">Yes, delete</button> <a href="{{ cancel_url }}">Cancel</a></form>{% endblock %}

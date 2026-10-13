@@ -1,0 +1,13 @@
+{% extends "base.html" %}{% block title %}Share {{ material.title }}{% endblock %}
+{% block content %}<p><a href="{% url 'vault:material_detail' material.pk %}">&larr; {{ material.title }}</a></p>
+<h1 class="text-2xl font-bold">Share "{{ material.title }}"</h1>
+<h2 class="mt-4 font-bold">Currently shared with</h2>
+<ul>{% for s in shares %}<li>{{ s.group.name }}: {{ s.get_permission_display }}{% if s.allow_download %}, download allowed{% endif %} <small>risk {{ s.risk_score }} ({{ s.risk_level }})</small>
+<form method="post" action="{% url 'sharing:share_revoke' s.pk %}" class="inline">{% csrf_token %}<button type="submit">Revoke</button></form></li>
+{% empty %}<li>Private: not shared with anyone.</li>{% endfor %}</ul>
+<h2 class="mt-4 font-bold">Share or change settings</h2>
+{% if assessment %}<p role="alert" data-risk-level="{{ assessment.level }}">Risk {{ assessment.score }} ({{ assessment.level }}): {{ assessment.message }}
+{% if assessment.recommended %}Recommended: {{ assessment.recommended.permission }}, download {% if assessment.recommended.allow_download %}on{% else %}off{% endif %}.{% endif %}</p>{% endif %}
+<form method="post" id="share-form">{% csrf_token %}{{ form.as_p }}<button type="submit">Save share</button></form>
+{# Risk rules for the live meter (display only; the server decides): #}
+{{ risk_rules|json_script:"risk-rules" }}{% endblock %}

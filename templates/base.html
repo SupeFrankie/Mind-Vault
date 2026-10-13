@@ -1,0 +1,30 @@
+{% load static %}<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>{% block title %}MindVault{% endblock %}</title>
+  <link rel="stylesheet" href="{% static 'css/output.css' %}">
+</head>
+<body class="min-h-screen bg-slate-50 text-slate-900">
+<header class="border-b bg-white">
+  <nav class="mx-auto flex max-w-5xl flex-wrap items-center gap-4 p-4">
+    <a href="{% url 'core:dashboard' %}" class="font-bold">MindVault</a>
+    {% if user.is_authenticated %}
+      <a href="{% url 'vault:semester_list' %}">Vault</a>
+      <a href="{% url 'vault:material_library' %}">Library</a>
+      <a href="{% url 'sharing:group_list' %}">Groups</a>
+      <a href="{% url 'sharing:shared_list' %}">Shared with me</a>
+      <a href="{% url 'core:activity' %}">Activity</a>
+      <span class="ml-auto"><a href="{% url 'accounts:profile' %}">{{ user.get_short_name }}</a></span>
+      <form method="post" action="{% url 'accounts:logout' %}">{% csrf_token %}<button type="submit">Log out</button></form>
+    {% endif %}
+  </nav>
+</header>
+<main class="mx-auto max-w-5xl p-4">
+  {% if messages %}<ul class="mb-4" role="status">{% for m in messages %}
+    <li class="rounded border p-2 {% if m.tags == 'error' %}border-red-400 bg-red-50{% else %}border-green-400 bg-green-50{% endif %}">{{ m }}</li>{% endfor %}</ul>{% endif %}
+  {% block content %}{% endblock %}
+</main>
+</body>
+</html>

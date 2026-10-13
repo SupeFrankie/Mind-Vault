@@ -1,0 +1,8 @@
+{% extends "base.html" %}{% block title %}Shared with me{% endblock %}
+{% block content %}<h1 class="text-2xl font-bold">Shared with me</h1>
+<form method="get" class="mb-4"><input type="search" name="q" value="{{ params.q }}" placeholder="Search">
+  <select name="kind"><option value="">All types</option>{% for v, l in kinds %}<option value="{{ v }}" {% if params.kind == v %}selected{% endif %}>{{ l }}</option>{% endfor %}</select>
+  <button type="submit">Filter</button></form>
+<ul>{% for m in page %}<li><a href="{% url 'sharing:shared_detail' m.pk %}">{{ m.title }}</a> <small>{{ m.get_kind_display }} · from {{ m.owner.full_name }}</small></li>
+{% empty %}<li>Nothing has been shared with you.</li>{% endfor %}</ul>
+{% include "partials/pagination.html" %}{% endblock %}

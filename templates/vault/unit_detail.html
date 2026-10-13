@@ -1,0 +1,5 @@
+{% extends "base.html" %}{% block title %}{{ unit.title }}{% endblock %}
+{% block content %}<p><a href="{% url 'vault:course_detail' unit.course_id %}">&larr; {{ unit.course }}</a></p>
+<h1 class="text-2xl font-bold">{{ unit.title }}</h1>
+<p><a href="{% url 'vault:material_create' %}?unit={{ unit.pk }}">+ Add material</a> · <a href="{% url 'vault:unit_edit' unit.pk %}">Edit</a> · <a href="{% url 'vault:unit_delete' unit.pk %}">Delete</a></p>
+<ul>{% for m in materials %}<li><a href="{% url 'vault:material_detail' m.pk %}">{{ m.title }}</a> <small>{{ m.get_kind_display }}</small></li>{% empty %}<li>No materials yet.</li>{% endfor %}</ul>{% endblock %}

@@ -1,0 +1,6 @@
+{% extends "base.html" %}{% block title %}Activity{% endblock %}
+{% block content %}<h1 class="text-2xl font-bold">Security activity</h1>
+<table class="w-full text-left"><tr><th>When</th><th>Action</th><th>Outcome</th><th>Target</th></tr>
+{% for e in page %}<tr><td>{{ e.created_at|date:"d M Y H:i" }}</td><td>{{ e.action }}</td><td>{{ e.outcome }}</td><td>{{ e.target_type }} {{ e.target_id|default:"" }}</td></tr>
+{% empty %}<tr><td colspan="4">No events yet.</td></tr>{% endfor %}</table>
+{% include "partials/pagination.html" %}{% endblock %}
