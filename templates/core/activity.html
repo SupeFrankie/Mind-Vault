@@ -1,6 +1,4 @@
-{% extends "base.html" %}{% block title %}Activity{% endblock %}
-{% block content %}<h1 class="text-2xl font-bold">Security activity</h1>
-<table class="w-full text-left"><tr><th>When</th><th>Action</th><th>Outcome</th><th>Target</th></tr>
-{% for e in page %}<tr><td>{{ e.created_at|date:"d M Y H:i" }}</td><td>{{ e.action }}</td><td>{{ e.outcome }}</td><td>{{ e.target_type }} {{ e.target_id|default:"" }}</td></tr>
-{% empty %}<tr><td colspan="4">No events yet.</td></tr>{% endfor %}</table>
-{% include "partials/pagination.html" %}{% endblock %}
+{% extends "base.html" %}
+{% block title %}Activity history | MindVault{% endblock %}
+{% block page_label %}Activity History{% endblock %}
+{% block content %}<div class="workspace-page"><header class="page-heading"><div><span class="eyebrow">ACCOUNT HISTORY</span><h1>Security activity</h1><p>A record of events associated with your account.</p></div></header><section class="content-section" aria-labelledby="activity-heading"><div class="section-heading"><div><h2 id="activity-heading">Recent events</h2><p>Page {{ page.number }} of {{ page.paginator.num_pages|default:1 }}</p></div></div>{% if page %}<div class="activity-table-wrap"><table class="activity-table"><thead><tr><th scope="col">When</th><th scope="col">Action</th><th scope="col">Outcome</th><th scope="col">Target</th></tr></thead><tbody>{% for e in page %}<tr><td data-label="When"><time datetime="{{ e.created_at|date:'c' }}">{{ e.created_at|date:"d M Y, H:i" }}</time></td><td data-label="Action">{{ e.action }}</td><td data-label="Outcome"><span class="status-chip {% if e.outcome == 'allowed' %}status-success{% elif e.outcome == 'denied' or e.outcome == 'blocked' %}status-warning{% endif %}">{{ e.get_outcome_display }}</span></td><td data-label="Target">{{ e.target_type }}{% if e.target_id %} · {{ e.target_id }}{% endif %}</td></tr>{% endfor %}</tbody></table></div>{% else %}<div class="empty-state"><span class="empty-mark" aria-hidden="true">◷</span><h3>No activity yet</h3><p>Account events will appear here when available.</p></div>{% endif %}</section>{% include "partials/pagination.html" %}</div>{% endblock %}

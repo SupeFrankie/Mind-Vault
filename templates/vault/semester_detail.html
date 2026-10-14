@@ -1,5 +1,127 @@
-{% extends "base.html" %}{% block title %}{{ semester.name }}{% endblock %}
-{% block content %}<h1 class="text-2xl font-bold">{{ semester.name }}</h1>
-<p><a href="{% url 'vault:course_create' semester.pk %}">+ Add course</a> ·
-<a href="{% url 'vault:semester_edit' semester.pk %}">Rename</a> · <a href="{% url 'vault:semester_delete' semester.pk %}">Delete</a></p>
-<ul>{% for c in courses %}<li><a href="{% url 'vault:course_detail' c.pk %}">{{ c }}</a></li>{% empty %}<li>No courses yet.</li>{% endfor %}</ul>{% endblock %}
+{% extends "base.html" %}
+{% block title %}{{ semester.name }} | My Vault{% endblock %}
+{% block page_label %}Semester details{% endblock %}
+{% block content %}
+<div class="semester-detail-page">
+  <nav class="semester-breadcrumb" aria-label="Breadcrumb">
+    <a href="{% url 'vault:semester_list' %}">My Vault</a>
+    <span aria-hidden="true">/</span>
+    <span aria-current="page">{{ semester.name }}</span>
+  </nav>
+
+  <section class="semester-detail-hero">
+    <div class="semester-detail-heading">
+      <div class="semester-detail-icon" aria-hidden="true">▤</div>
+      <div>
+        <span class="dashboard-eyebrow">YOUR ACADEMIC WORKSPACE</span>
+        <h1>{{ semester.name }}</h1>
+        <p>
+          Organise your courses and bring all your learning resources together.
+        </p>
+      </div>
+    </div>
+
+    <a
+      href="{% url 'vault:course_create' semester.pk %}"
+      class="dashboard-primary-button"
+    >
+      <span aria-hidden="true">+</span>
+      Add course
+    </a>
+  </section>
+
+  <section
+    class="semester-course-section"
+    aria-labelledby="semester-courses-heading"
+  >
+    <div class="semester-course-heading">
+      <div>
+        <h2 id="semester-courses-heading">Courses</h2>
+        <p>Choose a course to explore its units and materials.</p>
+      </div>
+
+      <span class="semester-course-count">
+        {{ courses|length }} {% if courses|length == 1 %}course{% else %}courses{% endif %}
+      </span>
+    </div>
+
+    {% for c in courses %} {% if forloop.first %}
+    <div class="semester-course-grid">
+      {% endif %}
+
+      <a
+        href="{% url 'vault:course_detail' c.pk %}"
+        class="semester-course-card"
+      >
+        <div class="semester-course-card-top">
+          <span class="semester-course-symbol" aria-hidden="true">▧</span>
+          <span class="semester-course-arrow" aria-hidden="true">↗</span>
+        </div>
+
+        <div class="semester-course-card-copy">
+          <span class="semester-course-label"
+            >COURSE {{ forloop.counter|stringformat:"02d" }}</span
+          >
+          <h3>{{ c }}</h3>
+          <p>Open this course to view its units and learning materials.</p>
+        </div>
+
+        <div class="semester-course-card-footer">
+          <span>Explore course</span>
+          <span aria-hidden="true">→</span>
+        </div>
+      </a>
+
+      {% if forloop.last %}
+    </div>
+    {% endif %} {% empty %}
+    <div class="semester-course-empty">
+      <div class="semester-course-empty-icon" aria-hidden="true">▧</div>
+      <h3>No courses in this semester yet</h3>
+      <p>
+        Add your first course to start organising its units, notes and research
+        materials.
+      </p>
+      <a
+        href="{% url 'vault:course_create' semester.pk %}"
+        class="dashboard-primary-button"
+      >
+        <span aria-hidden="true">+</span>
+        Add your first course
+      </a>
+    </div>
+    {% endfor %}
+  </section>
+
+  <section
+    class="semester-management-panel"
+    aria-labelledby="semester-management-heading"
+  >
+    <div class="semester-management-copy">
+      <h2 id="semester-management-heading">Manage semester</h2>
+      <p>
+        Update the semester name or remove this semester if you no longer need
+        it.
+      </p>
+    </div>
+
+    <div class="semester-management-actions">
+      <a
+        href="{% url 'vault:semester_edit' semester.pk %}"
+        class="semester-secondary-button"
+      >
+        <span aria-hidden="true">✎</span>
+        Rename semester
+      </a>
+
+      <a
+        href="{% url 'vault:semester_delete' semester.pk %}"
+        class="semester-danger-button"
+      >
+        <span aria-hidden="true">⌫</span>
+        Delete semester
+      </a>
+    </div>
+  </section>
+</div>
+{% endblock %}

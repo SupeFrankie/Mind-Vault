@@ -1,5 +1,123 @@
-{% extends "base.html" %}{% block title %}{{ course.title }}{% endblock %}
-{% block content %}<p><a href="{% url 'vault:semester_detail' course.semester_id %}">&larr; {{ course.semester.name }}</a></p>
-<h1 class="text-2xl font-bold">{{ course }}</h1>
-<p><a href="{% url 'vault:unit_create' course.pk %}">+ Add unit</a> · <a href="{% url 'vault:course_edit' course.pk %}">Edit</a> · <a href="{% url 'vault:course_delete' course.pk %}">Delete</a></p>
-<ul>{% for u in units %}<li><a href="{% url 'vault:unit_detail' u.pk %}">{{ u.title }}</a></li>{% empty %}<li>No units yet.</li>{% endfor %}</ul>{% endblock %}
+{% extends "base.html" %}
+{% block title %}{{ course.title }} | MindVault{% endblock %}
+{% block page_label %}Course details{% endblock %}
+{% block content %}
+<div class="course-detail-page">
+  <nav class="course-breadcrumb" aria-label="Breadcrumb">
+    <a href="{% url 'vault:semester_detail' course.semester_id %}">
+      {{ course.semester.name }}
+    </a>
+    <span aria-hidden="true">/</span>
+    <span aria-current="page">{{ course.title }}</span>
+  </nav>
+
+  <section class="course-detail-hero">
+    <div class="course-detail-heading">
+      <div class="course-detail-icon" aria-hidden="true">▧</div>
+
+      <div class="course-detail-heading-copy">
+        <span class="course-detail-eyebrow">YOUR LEARNING SPACE</span>
+        <h1>{{ course }}</h1>
+        <p>
+          Keep your course organised. Add units to structure your notes,
+          research and learning materials.
+        </p>
+      </div>
+    </div>
+
+    <a
+      href="{% url 'vault:unit_create' course.pk %}"
+      class="course-primary-button"
+    >
+      <span aria-hidden="true">+</span>
+      Add unit
+    </a>
+  </section>
+
+  <section class="course-units-section" aria-labelledby="course-units-heading">
+    <div class="course-units-heading">
+      <div>
+        <span class="course-detail-eyebrow">COURSE CONTENT</span>
+        <h2 id="course-units-heading">Your units</h2>
+        <p>Choose a unit to explore its learning materials.</p>
+      </div>
+
+      <span class="course-unit-count">
+        {{ units|length }} {% if units|length == 1 %}unit{% else %}units{% endif %}
+      </span>
+    </div>
+
+    {% for u in units %} {% if forloop.first %}
+    <div class="course-unit-grid">
+      {% endif %}
+
+      <a href="{% url 'vault:unit_detail' u.pk %}" class="course-unit-card">
+        <div class="course-unit-card-top">
+          <span class="course-unit-icon" aria-hidden="true">▤</span>
+          <span class="course-unit-arrow" aria-hidden="true">↗</span>
+        </div>
+
+        <div class="course-unit-card-copy">
+          <span class="course-unit-label">
+            UNIT {{ forloop.counter|stringformat:"02d" }}
+          </span>
+          <h3>{{ u.title }}</h3>
+          <p>Open this unit to access its notes and learning materials.</p>
+        </div>
+
+        <div class="course-unit-card-footer">
+          <span>Explore unit</span>
+          <span aria-hidden="true">→</span>
+        </div>
+      </a>
+
+      {% if forloop.last %}
+    </div>
+    {% endif %} {% empty %}
+    <div class="course-unit-empty">
+      <div class="course-unit-empty-icon" aria-hidden="true">▤</div>
+      <h3>Your course starts here</h3>
+      <p>
+        Create your first unit to organise course notes, documents and research
+        in one place.
+      </p>
+      <a
+        href="{% url 'vault:unit_create' course.pk %}"
+        class="course-primary-button"
+      >
+        <span aria-hidden="true">+</span>
+        Create your first unit
+      </a>
+    </div>
+    {% endfor %}
+  </section>
+
+  <section
+    class="course-management-panel"
+    aria-labelledby="course-management-heading"
+  >
+    <div class="course-management-copy">
+      <span class="course-management-icon" aria-hidden="true">⚙</span>
+      <div>
+        <h2 id="course-management-heading">Course settings</h2>
+        <p>Update this course or remove it if it is no longer needed.</p>
+      </div>
+    </div>
+
+    <div class="course-management-actions">
+      <a
+        href="{% url 'vault:course_edit' course.pk %}"
+        class="course-secondary-button"
+      >
+        Edit course
+      </a>
+      <a
+        href="{% url 'vault:course_delete' course.pk %}"
+        class="course-danger-button"
+      >
+        Delete course
+      </a>
+    </div>
+  </section>
+</div>
+{% endblock %}

@@ -1,13 +1,215 @@
-{% extends "base.html" %}{% block title %}Dashboard{% endblock %}
-{% block content %}<h1 class="text-2xl font-bold">Welcome, {{ user.get_short_name }}</h1>
-<ul>
-  <li>Semesters: {{ semester_count }}</li><li>Materials: {{ material_count }}</li>
-  <li>Groups: {{ group_count }}</li><li>Shared by me: {{ shared_by_me_count }}</li>
-  <li>Shared with me: {{ shared_with_me_count }}</li>
-</ul>
-<h2 class="mt-4 font-bold">Recent materials</h2>
-{% for m in recent_materials %}<p><a href="{% url 'vault:material_detail' m.pk %}">{{ m.title }}</a> <small>{{ m.unit.course }} / {{ m.unit }}</small></p>
-{% empty %}<p>Nothing yet. <a href="{% url 'vault:semester_create' %}">Create a semester</a> to start.</p>{% endfor %}
-<h2 class="mt-4 font-bold">Recent security events</h2>
-{% for e in recent_events %}<p>{{ e.created_at|date:"d M H:i" }} {{ e.action }} ({{ e.outcome }})</p>{% empty %}<p>None.</p>{% endfor %}
+{% extends "base.html" %} {% block title %}Dashboard | MindVault{% endblock %}
+{% block page_label %}Dashboard{% endblock %} {% block content %}
+<div class="dashboard-page">
+  <!-- Welcome section -->
+  <section class="dashboard-welcome">
+    <div class="welcome-copy">
+      <span class="dashboard-eyebrow">YOUR KNOWLEDGE SPACE</span>
+      <h1>
+        Welcome back{% if user.get_short_name %}, {{ user.get_short_name }}{% endif %}.
+      </h1>
+      <p>Your ideas, research and collaborations, all in one place.</p>
+    </div>
+
+    <a
+      href="{% url 'vault:semester_create' %}"
+      class="dashboard-primary-button"
+    >
+      <span aria-hidden="true">+</span>
+      Create a semester
+    </a>
+  </section>
+
+  <!-- Workspace overview -->
+  <section class="dashboard-section" aria-labelledby="overview-heading">
+    <div class="dashboard-section-heading">
+      <div>
+        <h2 id="overview-heading">Your workspace</h2>
+        <p>A quick overview of your knowledge library.</p>
+      </div>
+    </div>
+
+    <div class="dashboard-stats">
+      <article class="dashboard-stat-card">
+        <div class="stat-card-top">
+          <span class="stat-icon" aria-hidden="true">▤</span>
+          <span class="stat-label">Organisation</span>
+        </div>
+        <p class="stat-number">{{ semester_count }}</p>
+        <h3>Semesters</h3>
+        <a href="{% url 'vault:semester_list' %}" class="stat-link">
+          Explore your vault <span aria-hidden="true">→</span>
+        </a>
+      </article>
+
+      <article class="dashboard-stat-card">
+        <div class="stat-card-top">
+          <span class="stat-icon" aria-hidden="true">▧</span>
+          <span class="stat-label">Your library</span>
+        </div>
+        <p class="stat-number">{{ material_count }}</p>
+        <h3>Materials</h3>
+        <a href="{% url 'vault:material_library' %}" class="stat-link">
+          Browse materials <span aria-hidden="true">→</span>
+        </a>
+      </article>
+
+      <article class="dashboard-stat-card">
+        <div class="stat-card-top">
+          <span class="stat-icon" aria-hidden="true">♧</span>
+          <span class="stat-label">Collaboration</span>
+        </div>
+        <p class="stat-number">{{ group_count }}</p>
+        <h3>Study groups</h3>
+        <a href="{% url 'sharing:group_list' %}" class="stat-link">
+          View your groups <span aria-hidden="true">→</span>
+        </a>
+      </article>
+
+      <article class="dashboard-stat-card">
+        <div class="stat-card-top">
+          <span class="stat-icon" aria-hidden="true">↗</span>
+          <span class="stat-label">Your contributions</span>
+        </div>
+        <p class="stat-number">{{ shared_by_me_count }}</p>
+        <h3>Shared by you</h3>
+        <a href="{% url 'vault:material_library' %}" class="stat-link">
+          Manage your material shares <span aria-hidden="true">→</span>
+        </a>
+      </article>
+
+      <article class="dashboard-stat-card">
+        <div class="stat-card-top">
+          <span class="stat-icon" aria-hidden="true">↙</span>
+          <span class="stat-label">Team resources</span>
+        </div>
+        <p class="stat-number">{{ shared_with_me_count }}</p>
+        <h3>Shared with you</h3>
+        <a href="{% url 'sharing:shared_list' %}" class="stat-link">
+          Explore shared resources <span aria-hidden="true">→</span>
+        </a>
+      </article>
+    </div>
+  </section>
+
+  <!-- Main dashboard content -->
+  <div class="dashboard-content-grid">
+    <!-- Recent materials -->
+    <section class="dashboard-panel" aria-labelledby="materials-heading">
+      <div class="dashboard-panel-heading">
+        <div>
+          <span class="dashboard-eyebrow">YOUR COLLECTION</span>
+          <h2 id="materials-heading">Recent materials</h2>
+          <p>Pick up where your learning left off.</p>
+        </div>
+
+        <a
+          href="{% url 'vault:material_library' %}"
+          class="dashboard-text-link"
+        >
+          View all <span aria-hidden="true">→</span>
+        </a>
+      </div>
+
+      <div class="dashboard-material-list">
+        {% for m in recent_materials %}
+        <article class="dashboard-material-item">
+          <div class="material-file-icon" aria-hidden="true">▤</div>
+
+          <div class="material-item-copy">
+            <a
+              href="{% url 'vault:material_detail' m.pk %}"
+              class="material-item-title"
+            >
+              {{ m.title }}
+            </a>
+            <p class="material-item-location">
+              {{ m.unit.course }} <span aria-hidden="true">·</span> {{ m.unit }}
+            </p>
+          </div>
+
+          <a
+            href="{% url 'vault:material_detail' m.pk %}"
+            class="material-open-link"
+            aria-label="Open {{ m.title }}"
+          >
+            <span aria-hidden="true">↗</span>
+          </a>
+        </article>
+        {% empty %}
+        <div class="dashboard-empty-state">
+          <span class="empty-state-icon" aria-hidden="true">▤</span>
+          <h3>Your library starts here</h3>
+          <p>
+            You haven't added any materials yet. Organise your semester first,
+            then start collecting your study resources.
+          </p>
+          <a
+            href="{% url 'vault:semester_create' %}"
+            class="dashboard-primary-button"
+          >
+            Create your first semester
+          </a>
+        </div>
+        {% endfor %}
+      </div>
+    </section>
+
+    <!-- Recent activity -->
+    <section class="dashboard-panel" aria-labelledby="activity-heading">
+      <div class="dashboard-panel-heading">
+        <div>
+          <span class="dashboard-eyebrow">STAY INFORMED</span>
+          <h2 id="activity-heading">Security activity</h2>
+          <p>Recent events recorded in your workspace.</p>
+        </div>
+
+        <a href="{% url 'core:activity' %}" class="dashboard-text-link">
+          View all <span aria-hidden="true">→</span>
+        </a>
+      </div>
+
+      <div class="dashboard-activity-list">
+        {% for e in recent_events %}
+        <article class="dashboard-activity-item">
+          <div class="activity-timeline-marker" aria-hidden="true">
+            <span></span>
+          </div>
+
+          <div class="activity-item-copy">
+            <p class="activity-event-name">{{ e.action }}</p>
+
+            <div class="activity-event-meta">
+              <time datetime="{{ e.created_at|date:'c' }}">{{ e.created_at|date:"d M, H:i" }}</time>
+
+              <span
+                class="activity-outcome {% if e.outcome == 'allowed' %}outcome-success{% elif e.outcome == 'denied' or e.outcome == 'blocked' %}outcome-warning{% endif %}"
+              >
+                {{ e.get_outcome_display }}
+              </span>
+            </div>
+          </div>
+        </article>
+        {% empty %}
+        <div class="dashboard-empty-state activity-empty-state">
+          <span class="empty-state-icon" aria-hidden="true">◷</span>
+          <h3>No recent events</h3>
+          <p>Workspace events will appear here when they are recorded.</p>
+        </div>
+        {% endfor %}
+      </div>
+
+      <div class="dashboard-security-note">
+        <span class="security-note-icon" aria-hidden="true">✓</span>
+        <div>
+          <h3>Security matters</h3>
+          <p>
+            Review sharing permissions carefully before giving others access to
+            your research.
+          </p>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
 {% endblock %}

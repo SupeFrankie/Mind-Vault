@@ -1,5 +1,12 @@
-{% extends "base.html" %}{% block title %}{{ unit.title }}{% endblock %}
-{% block content %}<p><a href="{% url 'vault:course_detail' unit.course_id %}">&larr; {{ unit.course }}</a></p>
-<h1 class="text-2xl font-bold">{{ unit.title }}</h1>
-<p><a href="{% url 'vault:material_create' %}?unit={{ unit.pk }}">+ Add material</a> · <a href="{% url 'vault:unit_edit' unit.pk %}">Edit</a> · <a href="{% url 'vault:unit_delete' unit.pk %}">Delete</a></p>
-<ul>{% for m in materials %}<li><a href="{% url 'vault:material_detail' m.pk %}">{{ m.title }}</a> <small>{{ m.get_kind_display }}</small></li>{% empty %}<li>No materials yet.</li>{% endfor %}</ul>{% endblock %}
+{% extends "base.html" %}
+{% block title %}{{ unit.title }} | MindVault{% endblock %}
+{% block page_label %}Unit{% endblock %}
+{% block content %}
+<div class="workspace-page">
+  <nav class="page-breadcrumb" aria-label="Breadcrumb"><a href="{% url 'vault:semester_detail' unit.course.semester_id %}">{{ unit.course.semester.name }}</a><span aria-hidden="true">/</span><a href="{% url 'vault:course_detail' unit.course_id %}">{{ unit.course }}</a><span aria-hidden="true">/</span><span aria-current="page">{{ unit.title }}</span></nav>
+  <header class="page-heading"><div><span class="eyebrow">COURSE UNIT</span><h1>{{ unit.title }}</h1><p>{{ unit.course }} · {{ unit.course.semester.name }}</p></div><div class="page-actions"><a class="button button-primary" href="{% url 'vault:material_create' %}?unit={{ unit.pk }}">Add material</a><a class="button button-secondary" href="{% url 'vault:unit_edit' unit.pk %}">Edit unit</a><a class="button button-danger" href="{% url 'vault:unit_delete' unit.pk %}">Delete</a></div></header>
+  <section class="content-section" aria-labelledby="unit-materials-heading"><div class="section-heading"><div><h2 id="unit-materials-heading">Materials</h2><p>{{ materials|length }} {% if materials|length == 1 %}item{% else %}items{% endif %} in this unit</p></div></div>
+    {% if materials %}<div class="record-list">{% for m in materials %}<article class="record-row"><div class="record-mark" aria-hidden="true">{{ m.get_kind_display|slice:":1" }}</div><div class="record-copy"><a class="record-title" href="{% url 'vault:material_detail' m.pk %}">{{ m.title }}</a><p>{{ m.get_kind_display }}{% if m.original_filename %} · {{ m.original_filename }}{% endif %}</p></div><a class="button button-secondary button-small" href="{% url 'vault:material_detail' m.pk %}">Open</a></article>{% endfor %}</div>{% else %}<div class="empty-state"><span class="empty-mark" aria-hidden="true">＋</span><h3>No materials yet</h3><p>Add a reading, note, or research file to this unit.</p><a class="button button-primary" href="{% url 'vault:material_create' %}?unit={{ unit.pk }}">Add the first material</a></div>{% endif %}
+  </section>
+</div>
+{% endblock %}

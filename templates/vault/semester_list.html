@@ -1,5 +1,114 @@
-{% extends "base.html" %}{% block title %}Vault{% endblock %}
-{% block content %}<h1 class="text-2xl font-bold">Your vault</h1>
-<p><a href="{% url 'vault:semester_create' %}">+ New semester</a></p>
-<ul>{% for s in semesters %}<li><a href="{% url 'vault:semester_detail' s.pk %}">{{ s.name }}</a></li>
-{% empty %}<li>No semesters yet.</li>{% endfor %}</ul>{% endblock %}
+{% extends "base.html" %}
+{% block title %}My Vault | MindVault{% endblock %}
+{% block page_label %}My Vault{% endblock %}
+{% block content %}
+<div class="vault-page">
+  <section class="vault-hero">
+    <div class="vault-hero-copy">
+      <span class="dashboard-eyebrow">YOUR ACADEMIC WORKSPACE</span>
+      <h1>My Vault</h1>
+      <p>
+        Every semester, course and learning resource, organised in one place.
+      </p>
+    </div>
+
+    <a
+      href="{% url 'vault:semester_create' %}"
+      class="dashboard-primary-button"
+    >
+      <span aria-hidden="true">+</span>
+      New semester
+    </a>
+  </section>
+
+  <section class="vault-overview" aria-label="Vault overview">
+    <div class="vault-overview-icon" aria-hidden="true">▤</div>
+    <div>
+      <p class="vault-overview-label">YOUR COLLECTION</p>
+      <p class="vault-overview-number">
+        {{ semesters|length }}
+        <span>{% if semesters|length == 1 %}semester{% else %}semesters{% endif %}</span>
+      </p>
+    </div>
+    <p class="vault-overview-note">
+      Build your learning space one semester at a time.
+    </p>
+  </section>
+
+  <section
+    class="vault-semester-section"
+    aria-labelledby="semester-list-heading"
+  >
+    <div class="vault-section-heading">
+      <div>
+        <h2 id="semester-list-heading">Your semesters</h2>
+        <p>Choose a semester to explore its courses and materials.</p>
+      </div>
+    </div>
+
+    {% for s in semesters %} {% if forloop.first %}
+    <div class="vault-semester-grid">
+      {% endif %}
+
+      <a
+        href="{% url 'vault:semester_detail' s.pk %}"
+        class="vault-semester-card"
+      >
+        <div class="vault-card-top">
+          <span class="vault-semester-icon" aria-hidden="true">▤</span>
+          <span class="vault-card-arrow" aria-hidden="true">↗</span>
+        </div>
+
+        <div class="vault-semester-card-copy">
+          <span class="vault-card-eyebrow">
+            SEMESTER {{ forloop.counter|stringformat:"02d" }}
+          </span>
+          <h3>{{ s.name }}</h3>
+          <p>
+            Explore courses, organise units and keep your study materials
+            together.
+          </p>
+        </div>
+
+        <div class="vault-card-footer">
+          <span>Open semester</span>
+          <span aria-hidden="true">→</span>
+        </div>
+      </a>
+
+      {% if forloop.last %}
+    </div>
+    {% endif %} {% empty %}
+    <div class="vault-empty-state">
+      <div class="vault-empty-illustration" aria-hidden="true">
+        <span>▤</span>
+        <span>✦</span>
+      </div>
+      <h3>Your academic journey starts here</h3>
+      <p>
+        Create your first semester to start organising your courses, units,
+        notes and research materials.
+      </p>
+      <a
+        href="{% url 'vault:semester_create' %}"
+        class="dashboard-primary-button"
+      >
+        <span aria-hidden="true">+</span>
+        Create your first semester
+      </a>
+    </div>
+    {% endfor %}
+  </section>
+
+  <aside class="vault-tip">
+    <span class="vault-tip-icon" aria-hidden="true">✦</span>
+    <div>
+      <h3>A little organisation goes a long way</h3>
+      <p>
+        Keep each course and unit in its semester so your learning resources are
+        easier to find when you need them.
+      </p>
+    </div>
+  </aside>
+</div>
+{% endblock %}

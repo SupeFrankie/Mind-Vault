@@ -1,4 +1,4 @@
-{% extends "base.html" %}{% block title %}Profile{% endblock %}
-{% block content %}<h1 class="text-2xl font-bold">Your profile</h1>
-<p>Email: {{ user.email }}</p>
-<form method="post">{% csrf_token %}{{ form.as_p }}<button type="submit">Save</button></form>{% endblock %}
+{% extends "base.html" %}
+{% block title %}Your profile | MindVault{% endblock %}
+{% block page_label %}Account settings{% endblock %}
+{% block content %}<div class="workspace-page form-page"><header class="page-heading"><div><span class="eyebrow">ACCOUNT</span><h1>Your profile</h1><p>Manage the profile details shown in your workspace.</p></div></header><section class="surface-panel form-panel"><div class="account-email"><span class="field-label">Sign-in email</span><strong>{{ user.email }}</strong><span class="help-text">Your email is used to log in and cannot be changed here.</span></div><form method="post" class="styled-form">{% csrf_token %}{{ form.as_p }}<div class="form-actions"><button class="button button-primary" type="submit">Save profile</button></div></form></section></div>{% endblock %}

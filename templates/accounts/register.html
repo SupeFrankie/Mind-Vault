@@ -1,4 +1,4 @@
-{% extends "base.html" %}{% block title %}Register{% endblock %}
-{% block content %}<h1 class="text-2xl font-bold">Create your account</h1>
-<form method="post">{% csrf_token %}{{ form.as_p }}<button type="submit">Register</button></form>
-<p>Already registered? <a href="{% url 'accounts:login' %}">Log in</a></p>{% endblock %}
+{% extends "base.html" %}
+{% block title %}Create account | MindVault{% endblock %}
+{% block page_label %}Register{% endblock %}
+{% block content %}<div class="auth-page"><div class="auth-intro"><span class="eyebrow">MINDVAULT WORKSPACE</span><h1>A considered space for your work.</h1><p>Organise learning materials and collaborate with care.</p></div><section class="surface-panel auth-panel"><h2>Create your account</h2><p>Set up your MindVault profile.</p><form method="post" class="styled-form">{% csrf_token %}{{ form.as_p }}<button class="button button-primary button-wide" type="submit">Create account</button></form><p class="auth-switch">Already registered? <a href="{% url 'accounts:login' %}">Log in</a></p></section></div>{% endblock %}

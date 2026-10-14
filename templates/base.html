@@ -1,30 +1,258 @@
-{% load static %}<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>{% block title %}MindVault{% endblock %}</title>
-  <link rel="stylesheet" href="{% static 'css/output.css' %}">
-</head>
-<body class="min-h-screen bg-slate-50 text-slate-900">
-<header class="border-b bg-white">
-  <nav class="mx-auto flex max-w-5xl flex-wrap items-center gap-4 p-4">
-    <a href="{% url 'core:dashboard' %}" class="font-bold">MindVault</a>
-    {% if user.is_authenticated %}
-      <a href="{% url 'vault:semester_list' %}">Vault</a>
-      <a href="{% url 'vault:material_library' %}">Library</a>
-      <a href="{% url 'sharing:group_list' %}">Groups</a>
-      <a href="{% url 'sharing:shared_list' %}">Shared with me</a>
-      <a href="{% url 'core:activity' %}">Activity</a>
-      <span class="ml-auto"><a href="{% url 'accounts:profile' %}">{{ user.get_short_name }}</a></span>
-      <form method="post" action="{% url 'accounts:logout' %}">{% csrf_token %}<button type="submit">Log out</button></form>
-    {% endif %}
-  </nav>
-</header>
-<main class="mx-auto max-w-5xl p-4">
-  {% if messages %}<ul class="mb-4" role="status">{% for m in messages %}
-    <li class="rounded border p-2 {% if m.tags == 'error' %}border-red-400 bg-red-50{% else %}border-green-400 bg-green-50{% endif %}">{{ m }}</li>{% endfor %}</ul>{% endif %}
-  {% block content %}{% endblock %}
-</main>
-</body>
+{% load static %}
+<!doctype html>
+    <html lang="en" data-theme="light">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <meta name="color-scheme" content="light dark" />
+    <title>{% block title %}MindVault{% endblock %}</title>
+    <script>
+      try {
+        const savedTheme = localStorage.getItem("mindvault-theme");
+        document.documentElement.dataset.theme = savedTheme ||
+          (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+      } catch (_) {}
+    </script>
+    <link rel="stylesheet" href="{% static 'css/output.css' %}" />
+  </head>
+  <body>
+    <div class="app-shell">
+      {% if user.is_authenticated %}
+      <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+
+      <aside class="sidebar" id="sidebar" aria-label="Main navigation">
+        <button
+          type="button"
+          class="icon-button sidebar-close-button"
+          id="menuClose"
+          aria-label="Close navigation menu"
+        >
+          <span aria-hidden="true">×</span>
+        </button>
+        <a href="{% url 'core:dashboard' %}" class="brand">
+          <span class="brand-mark" aria-hidden="true">M</span>
+          <span class="brand-copy">
+            <span class="brand-name">MindVault</span>
+            <span class="brand-caption">Your knowledge space</span>
+          </span>
+        </a>
+
+        <div class="sidebar-label">WORKSPACE</div>
+
+        <nav class="sidebar-nav" aria-label="Workspace">
+          <a href="{% url 'core:dashboard' %}" class="nav-link{% if request.resolver_match.namespace == 'core' and request.resolver_match.url_name == 'dashboard' %} nav-link-active{% endif %}"{% if request.resolver_match.namespace == 'core' and request.resolver_match.url_name == 'dashboard' %} aria-current="page"{% endif %}>
+            <span class="nav-icon" aria-hidden="true">⌂</span>
+            <span>Dashboard</span>
+          </a>
+          <a href="{% url 'vault:semester_list' %}" class="nav-link{% if request.resolver_match.namespace == 'vault' and request.resolver_match.url_name != 'material_library' and request.resolver_match.url_name != 'material_create' and request.resolver_match.url_name != 'material_detail' and request.resolver_match.url_name != 'material_edit' and request.resolver_match.url_name != 'material_delete' and request.resolver_match.url_name != 'material_download' %} nav-link-active{% endif %}"{% if request.resolver_match.namespace == 'vault' and request.resolver_match.url_name != 'material_library' and request.resolver_match.url_name != 'material_create' and request.resolver_match.url_name != 'material_detail' and request.resolver_match.url_name != 'material_edit' and request.resolver_match.url_name != 'material_delete' and request.resolver_match.url_name != 'material_download' %} aria-current="page"{% endif %}>
+            <span class="nav-icon" aria-hidden="true">▤</span>
+            <span>My Vault</span>
+          </a>
+          <a href="{% url 'vault:material_library' %}" class="nav-link{% if request.resolver_match.namespace == 'vault' and 'material' in request.resolver_match.url_name %} nav-link-active{% endif %}"{% if request.resolver_match.namespace == 'vault' and 'material' in request.resolver_match.url_name %} aria-current="page"{% endif %}>
+            <span class="nav-icon" aria-hidden="true">▦</span>
+            <span>Material Library</span>
+          </a>
+          <a href="{% url 'sharing:group_list' %}" class="nav-link{% if request.resolver_match.namespace == 'sharing' and 'group' in request.resolver_match.url_name %} nav-link-active{% endif %}"{% if request.resolver_match.namespace == 'sharing' and 'group' in request.resolver_match.url_name %} aria-current="page"{% endif %}>
+            <span class="nav-icon" aria-hidden="true">♧</span>
+            <span>Study Groups</span>
+          </a>
+          <a href="{% url 'sharing:shared_list' %}" class="nav-link{% if request.resolver_match.namespace == 'sharing' and 'shared' in request.resolver_match.url_name %} nav-link-active{% endif %}"{% if request.resolver_match.namespace == 'sharing' and 'shared' in request.resolver_match.url_name %} aria-current="page"{% endif %}>
+            <span class="nav-icon" aria-hidden="true">⇄</span>
+            <span>Shared with me</span>
+          </a>
+          <a href="{% url 'core:activity' %}" class="nav-link{% if request.resolver_match.namespace == 'core' and request.resolver_match.url_name == 'activity' %} nav-link-active{% endif %}"{% if request.resolver_match.namespace == 'core' and request.resolver_match.url_name == 'activity' %} aria-current="page"{% endif %}>
+            <span class="nav-icon" aria-hidden="true">◷</span>
+            <span>Activity History</span>
+          </a>
+        </nav>
+
+        <div class="sidebar-spacer"></div>
+
+        <div class="security-note">
+          <span class="security-dot" aria-hidden="true"></span>
+          <div>
+            <strong>Thoughtful collaboration</strong>
+            <p>Share knowledge with care.</p>
+          </div>
+        </div>
+
+        <div class="sidebar-footer">
+          <a href="{% url 'accounts:profile' %}" class="profile-link">
+            <span class="avatar" aria-hidden="true">
+              {{ user.get_short_name|default:"U"|slice:":1"|upper }}
+            </span>
+            <span class="profile-copy">
+              <strong>{{ user.get_short_name|default:"Your profile" }}</strong>
+              <span>Account settings</span>
+            </span>
+          </a>
+
+          <form method="post" action="{% url 'accounts:logout' %}">
+            {% csrf_token %}
+            <button type="submit" class="logout-button">
+              <span aria-hidden="true">↪</span> Log out
+            </button>
+          </form>
+        </div>
+      </aside>
+      {% endif %}
+
+      <div class="main-panel{% if not user.is_authenticated %} main-panel-public{% endif %}">
+        <header class="topbar">
+          <div class="topbar-start">
+            {% if user.is_authenticated %}
+            <button
+              type="button"
+              class="icon-button mobile-menu-button"
+              id="menuToggle"
+              aria-label="Open navigation menu"
+              aria-controls="sidebar"
+              aria-expanded="false"
+            >
+              ☰
+            </button>
+            {% endif %}
+
+            <div class="breadcrumb">
+              <span>MindVault</span>
+              <span class="breadcrumb-divider" aria-hidden="true">/</span>
+              <span class="breadcrumb-current"
+                >{% block page_label %}Workspace{% endblock %}</span
+              >
+            </div>
+          </div>
+
+          <div class="topbar-actions">
+            <button
+              type="button"
+              class="theme-toggle"
+              id="themeToggle"
+              aria-label="Switch to dark mode"
+              aria-pressed="false"
+              title="Toggle light and dark mode"
+            >
+              <span id="themeIcon" aria-hidden="true">☾</span>
+              <span class="theme-toggle-label">Dark mode</span>
+            </button>
+          </div>
+        </header>
+
+        <main class="page-content" id="mainContent">
+          {% if messages %}
+          <ul class="messages-list" role="status" aria-live="polite">
+            {% for m in messages %}
+            <li
+              class="message-item {% if 'error' in m.tags %}message-error{% else %}message-success{% endif %}"
+            >
+              {{ m }}
+            </li>
+            {% endfor %}
+          </ul>
+          {% endif %} {% block content %}{% endblock %}
+        </main>
+
+        <footer class="app-footer">
+          <span>MindVault</span>
+          <span>Knowledge grows when shared thoughtfully.</span>
+        </footer>
+      </div>
+    </div>
+
+    <script>
+      (() => {
+        const root = document.documentElement;
+        const themeToggle = document.getElementById("themeToggle");
+        const themeIcon = document.getElementById("themeIcon");
+        const themeLabel = themeToggle?.querySelector(".theme-toggle-label");
+        const menuToggle = document.getElementById("menuToggle");
+        const menuClose = document.getElementById("menuClose");
+        const sidebar = document.getElementById("sidebar");
+        const backdrop = document.getElementById("sidebarBackdrop");
+        const mainPanel = document.querySelector(".main-panel");
+
+        // Respect a saved preference; otherwise follow the device setting.
+        let savedTheme = null;
+        try {
+          savedTheme = localStorage.getItem("mindvault-theme");
+        } catch (_) {}
+
+        const preferredTheme =
+          savedTheme ||
+          (window.matchMedia("(prefers-color-scheme: dark)").matches
+            ? "dark"
+            : "light");
+
+        function applyTheme(theme) {
+          root.dataset.theme = theme;
+          if (themeIcon) themeIcon.textContent = theme === "dark" ? "☀" : "☾";
+          if (themeLabel) {
+            themeLabel.textContent =
+              theme === "dark" ? "Light mode" : "Dark mode";
+          }
+          if (themeToggle) {
+            themeToggle.setAttribute(
+              "aria-label",
+              theme === "dark" ? "Switch to light mode" : "Switch to dark mode",
+            );
+            themeToggle.setAttribute("aria-pressed", String(theme === "dark"));
+          }
+        }
+
+        applyTheme(preferredTheme);
+
+        themeToggle?.addEventListener("click", () => {
+          const nextTheme = root.dataset.theme === "dark" ? "light" : "dark";
+          applyTheme(nextTheme);
+          try {
+            localStorage.setItem("mindvault-theme", nextTheme);
+          } catch (_) {}
+        });
+
+        function setMenuOpen(open, restoreFocus = false) {
+          sidebar?.classList.toggle("sidebar-open", open);
+          if (sidebar) sidebar.inert = !open && window.innerWidth <= 760;
+          if (mainPanel) mainPanel.inert = open && window.innerWidth <= 760;
+          backdrop?.classList.toggle("backdrop-visible", open);
+          menuToggle?.setAttribute("aria-expanded", String(open));
+          menuToggle?.setAttribute(
+            "aria-label",
+            open ? "Close navigation menu" : "Open navigation menu",
+          );
+          document.body.classList.toggle("menu-open", open);
+          if (open && window.innerWidth <= 760) {
+            sidebar?.querySelector(".sidebar-nav a")?.focus();
+          } else if (restoreFocus && window.innerWidth <= 760) {
+            menuToggle?.focus();
+          }
+        }
+
+        menuToggle?.addEventListener("click", () => {
+          const isOpen = sidebar?.classList.contains("sidebar-open");
+          setMenuOpen(!isOpen, Boolean(isOpen));
+        });
+
+        menuClose?.addEventListener("click", () => setMenuOpen(false, true));
+        backdrop?.addEventListener("click", () => setMenuOpen(false, true));
+
+        document.addEventListener("keydown", (event) => {
+          if (event.key === "Escape" && sidebar?.classList.contains("sidebar-open")) {
+            setMenuOpen(false, true);
+          }
+        });
+
+        if (sidebar && window.innerWidth <= 760) sidebar.inert = true;
+
+        window.addEventListener("resize", () => {
+          if (window.innerWidth > 760) setMenuOpen(false);
+          else if (!sidebar?.classList.contains("sidebar-open")) {
+            if (sidebar) sidebar.inert = true;
+            if (mainPanel) mainPanel.inert = false;
+          }
+        });
+      })();
+    </script>
+  </body>
 </html>

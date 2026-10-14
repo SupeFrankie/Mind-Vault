@@ -1,13 +1,13 @@
-{% extends "base.html" %}{% block title %}Library{% endblock %}
-{% block content %}<h1 class="text-2xl font-bold">Library</h1>
-<form method="get" class="mb-4">
-  <input type="search" name="q" value="{{ params.q }}" placeholder="Search title, notes, tags">
-  <select name="kind"><option value="">All types</option>{% for v, l in kinds %}<option value="{{ v }}" {% if params.kind == v %}selected{% endif %}>{{ l }}</option>{% endfor %}</select>
-  <select name="course"><option value="">All courses</option>{% for c in courses %}<option value="{{ c.pk }}" {% if params.course == c.pk|stringformat:"s" %}selected{% endif %}>{{ c }}</option>{% endfor %}</select>
-  <select name="tag"><option value="">All tags</option>{% for t in tags %}<option value="{{ t.name }}" {% if params.tag == t.name %}selected{% endif %}>{{ t.name }}</option>{% endfor %}</select>
-  <button type="submit">Filter</button>
-</form>
-<p><a href="{% url 'vault:material_create' %}">+ Add material</a></p>
-<ul>{% for m in page %}<li><a href="{% url 'vault:material_detail' m.pk %}">{{ m.title }}</a> <small>{{ m.get_kind_display }} · {{ m.unit.course }} / {{ m.unit }}</small>
-  {% for t in m.tags.all %}<span>#{{ t.name }}</span>{% endfor %}</li>{% empty %}<li>No materials match.</li>{% endfor %}</ul>
-{% include "partials/pagination.html" %}{% endblock %}
+{% extends "base.html" %}
+{% block title %}Material library | MindVault{% endblock %}
+{% block page_label %}Material Library{% endblock %}
+{% block content %}
+<div class="workspace-page library-page">
+  <header class="page-heading"><div><span class="eyebrow">YOUR RESEARCH COLLECTION</span><h1>Material library</h1><p>Find and revisit the documents and notes in your vault.</p></div><a class="button button-primary" href="{% url 'vault:material_create' %}">Add material</a></header>
+  <form method="get" action="{% url 'vault:material_library' %}" class="filter-panel" role="search"><div class="filter-grid"><div class="field"><label for="library-search">Search materials</label><input id="library-search" type="search" name="q" value="{{ params.q|default:'' }}" placeholder="Title, notes, authors, or tags"></div><div class="field"><label for="library-kind">Type</label><select id="library-kind" name="kind"><option value="">All types</option>{% for value, label in kinds %}<option value="{{ value }}"{% if params.kind == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></div><div class="field"><label for="library-course">Course</label><select id="library-course" name="course"><option value="">All courses</option>{% for c in courses %}<option value="{{ c.pk }}"{% if params.course == c.pk|stringformat:"s" %} selected{% endif %}>{{ c }}</option>{% endfor %}</select></div><div class="field"><label for="library-tag">Tag</label><select id="library-tag" name="tag"><option value="">All tags</option>{% for t in tags %}<option value="{{ t.name }}"{% if params.tag == t.name %} selected{% endif %}>{{ t.name }}</option>{% endfor %}</select></div></div>{% if params.unit %}<input type="hidden" name="unit" value="{{ params.unit }}"><p class="filter-note">A unit filter is active and will be kept while you adjust these filters.</p>{% endif %}<div class="filter-actions"><button class="button button-primary" type="submit">Apply filters</button><a class="button button-secondary" href="{% url 'vault:material_library' %}">Clear</a></div></form>
+  <section class="content-section" aria-labelledby="results-heading"><div class="section-heading"><div><h2 id="results-heading">Your materials</h2><p>{% if page.paginator.count %}{{ page.paginator.count }} result{{ page.paginator.count|pluralize }}{% else %}No matching results{% endif %}</p></div></div>
+    {% if page %}<div class="record-list">{% for m in page %}<article class="record-row"><div class="record-mark" aria-hidden="true">{{ m.get_kind_display|slice:":1" }}</div><div class="record-copy"><a class="record-title" href="{% url 'vault:material_detail' m.pk %}">{{ m.title }}</a><p>{{ m.get_kind_display }} · {{ m.unit.course }} / {{ m.unit }}</p>{% if m.tags.all %}<div class="tag-list" aria-label="Tags">{% for t in m.tags.all %}<span class="tag">{{ t.name }}</span>{% endfor %}</div>{% endif %}</div><a class="button button-secondary button-small" href="{% url 'vault:material_detail' m.pk %}">Open</a></article>{% endfor %}</div>{% else %}<div class="empty-state"><span class="empty-mark" aria-hidden="true">⌕</span><h3>No materials found</h3><p>Try adjusting your search or filters, or add a new item to your collection.</p><a class="button button-secondary" href="{% url 'vault:material_library' %}">Clear filters</a></div>{% endif %}
+  </section>
+  {% include "partials/pagination.html" %}
+</div>
+{% endblock %}
