@@ -14,8 +14,14 @@
         const savedTheme = localStorage.getItem("mindvault-theme");
         document.documentElement.dataset.theme = savedTheme ||
           (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+        if (localStorage.getItem("mindvault-sidebar-collapsed") === "true") {
+          document.documentElement.classList.add("sidebar-collapsed");
+        }
       } catch (_) {}
     </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="{% static 'css/output.css' %}" />
   </head>
   <body>
@@ -32,38 +38,47 @@
         >
           <span aria-hidden="true">×</span>
         </button>
-        <a href="{% url 'core:dashboard' %}" class="brand">
-          <span class="brand-mark" aria-hidden="true">M</span>
+        <a href="{% url 'core:dashboard' %}" class="brand" aria-label="MindVault home" title="MindVault home">
+          <svg class="brand-mark" viewBox="0 0 48 48" fill="none" aria-hidden="true" focusable="false">
+            <path d="M24 3.5 40 9v12.8c0 10.2-6.7 18.1-16 22.7C14.7 39.9 8 32 8 21.8V9l16-5.5Z" fill="currentColor" />
+            <path d="M15 17.5c3.2-1.9 6.2-1.9 9 0v14c-2.8-1.9-5.8-1.9-9 0v-14Zm18 0c-3.2-1.9-6.2-1.9-9 0v14c2.8-1.9 5.8-1.9 9 0v-14Z" stroke="var(--brand-mark-detail)" stroke-width="2" stroke-linejoin="round" />
+            <path d="M24 17.5v14" stroke="var(--brand-mark-detail)" stroke-width="2" />
+          </svg>
           <span class="brand-copy">
             <span class="brand-name">MindVault</span>
             <span class="brand-caption">Your knowledge space</span>
           </span>
         </a>
 
-        <div class="sidebar-label">WORKSPACE</div>
+        <div class="sidebar-section-heading">
+          <span class="sidebar-label">WORKSPACE</span>
+          <button type="button" class="icon-button sidebar-collapse-button" id="sidebarCollapse" aria-controls="sidebar" aria-expanded="true" aria-label="Collapse sidebar" title="Collapse sidebar">
+            <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="m12.5 4.5-5 5 5 5" /></svg>
+          </button>
+        </div>
 
         <nav class="sidebar-nav" aria-label="Workspace">
-          <a href="{% url 'core:dashboard' %}" class="nav-link{% if request.resolver_match.namespace == 'core' and request.resolver_match.url_name == 'dashboard' %} nav-link-active{% endif %}"{% if request.resolver_match.namespace == 'core' and request.resolver_match.url_name == 'dashboard' %} aria-current="page"{% endif %}>
+          <a href="{% url 'core:dashboard' %}" title="Dashboard" aria-label="Dashboard" class="nav-link{% if request.resolver_match.namespace == 'core' and request.resolver_match.url_name == 'dashboard' %} nav-link-active{% endif %}"{% if request.resolver_match.namespace == 'core' and request.resolver_match.url_name == 'dashboard' %} aria-current="page"{% endif %}>
             <span class="nav-icon" aria-hidden="true">⌂</span>
             <span>Dashboard</span>
           </a>
-          <a href="{% url 'vault:semester_list' %}" class="nav-link{% if request.resolver_match.namespace == 'vault' and request.resolver_match.url_name != 'material_library' and request.resolver_match.url_name != 'material_create' and request.resolver_match.url_name != 'material_detail' and request.resolver_match.url_name != 'material_edit' and request.resolver_match.url_name != 'material_delete' and request.resolver_match.url_name != 'material_download' %} nav-link-active{% endif %}"{% if request.resolver_match.namespace == 'vault' and request.resolver_match.url_name != 'material_library' and request.resolver_match.url_name != 'material_create' and request.resolver_match.url_name != 'material_detail' and request.resolver_match.url_name != 'material_edit' and request.resolver_match.url_name != 'material_delete' and request.resolver_match.url_name != 'material_download' %} aria-current="page"{% endif %}>
+          <a href="{% url 'vault:semester_list' %}" title="My Vault" aria-label="My Vault" class="nav-link{% if request.resolver_match.namespace == 'vault' and request.resolver_match.url_name != 'material_library' and request.resolver_match.url_name != 'material_create' and request.resolver_match.url_name != 'material_detail' and request.resolver_match.url_name != 'material_edit' and request.resolver_match.url_name != 'material_delete' and request.resolver_match.url_name != 'material_download' %} nav-link-active{% endif %}"{% if request.resolver_match.namespace == 'vault' and request.resolver_match.url_name != 'material_library' and request.resolver_match.url_name != 'material_create' and request.resolver_match.url_name != 'material_detail' and request.resolver_match.url_name != 'material_edit' and request.resolver_match.url_name != 'material_delete' and request.resolver_match.url_name != 'material_download' %} aria-current="page"{% endif %}>
             <span class="nav-icon" aria-hidden="true">▤</span>
             <span>My Vault</span>
           </a>
-          <a href="{% url 'vault:material_library' %}" class="nav-link{% if request.resolver_match.namespace == 'vault' and 'material' in request.resolver_match.url_name %} nav-link-active{% endif %}"{% if request.resolver_match.namespace == 'vault' and 'material' in request.resolver_match.url_name %} aria-current="page"{% endif %}>
+          <a href="{% url 'vault:material_library' %}" title="Material Library" aria-label="Material Library" class="nav-link{% if request.resolver_match.namespace == 'vault' and 'material' in request.resolver_match.url_name %} nav-link-active{% endif %}"{% if request.resolver_match.namespace == 'vault' and 'material' in request.resolver_match.url_name %} aria-current="page"{% endif %}>
             <span class="nav-icon" aria-hidden="true">▦</span>
             <span>Material Library</span>
           </a>
-          <a href="{% url 'sharing:group_list' %}" class="nav-link{% if request.resolver_match.namespace == 'sharing' and 'group' in request.resolver_match.url_name %} nav-link-active{% endif %}"{% if request.resolver_match.namespace == 'sharing' and 'group' in request.resolver_match.url_name %} aria-current="page"{% endif %}>
+          <a href="{% url 'sharing:group_list' %}" title="Study Groups" aria-label="Study Groups" class="nav-link{% if request.resolver_match.namespace == 'sharing' and 'group' in request.resolver_match.url_name %} nav-link-active{% endif %}"{% if request.resolver_match.namespace == 'sharing' and 'group' in request.resolver_match.url_name %} aria-current="page"{% endif %}>
             <span class="nav-icon" aria-hidden="true">♧</span>
             <span>Study Groups</span>
           </a>
-          <a href="{% url 'sharing:shared_list' %}" class="nav-link{% if request.resolver_match.namespace == 'sharing' and 'shared' in request.resolver_match.url_name %} nav-link-active{% endif %}"{% if request.resolver_match.namespace == 'sharing' and 'shared' in request.resolver_match.url_name %} aria-current="page"{% endif %}>
+          <a href="{% url 'sharing:shared_list' %}" title="Shared with me" aria-label="Shared with me" class="nav-link{% if request.resolver_match.namespace == 'sharing' and 'shared' in request.resolver_match.url_name %} nav-link-active{% endif %}"{% if request.resolver_match.namespace == 'sharing' and 'shared' in request.resolver_match.url_name %} aria-current="page"{% endif %}>
             <span class="nav-icon" aria-hidden="true">⇄</span>
             <span>Shared with me</span>
           </a>
-          <a href="{% url 'core:activity' %}" class="nav-link{% if request.resolver_match.namespace == 'core' and request.resolver_match.url_name == 'activity' %} nav-link-active{% endif %}"{% if request.resolver_match.namespace == 'core' and request.resolver_match.url_name == 'activity' %} aria-current="page"{% endif %}>
+          <a href="{% url 'core:activity' %}" title="Activity History" aria-label="Activity History" class="nav-link{% if request.resolver_match.namespace == 'core' and request.resolver_match.url_name == 'activity' %} nav-link-active{% endif %}"{% if request.resolver_match.namespace == 'core' and request.resolver_match.url_name == 'activity' %} aria-current="page"{% endif %}>
             <span class="nav-icon" aria-hidden="true">◷</span>
             <span>Activity History</span>
           </a>
@@ -80,7 +95,7 @@
         </div>
 
         <div class="sidebar-footer">
-          <a href="{% url 'accounts:profile' %}" class="profile-link">
+          <a href="{% url 'accounts:profile' %}" class="profile-link" title="Account settings" aria-label="Account settings">
             <span class="avatar" aria-hidden="true">
               {{ user.get_short_name|default:"U"|slice:":1"|upper }}
             </span>
@@ -92,8 +107,8 @@
 
           <form method="post" action="{% url 'accounts:logout' %}">
             {% csrf_token %}
-            <button type="submit" class="logout-button">
-              <span aria-hidden="true">↪</span> Log out
+            <button type="submit" class="logout-button" aria-label="Log out" title="Log out">
+              <span aria-hidden="true">↪</span><span class="logout-label">Log out</span>
             </button>
           </form>
         </div>
@@ -168,6 +183,7 @@
         const themeIcon = document.getElementById("themeIcon");
         const themeLabel = themeToggle?.querySelector(".theme-toggle-label");
         const menuToggle = document.getElementById("menuToggle");
+        const sidebarCollapse = document.getElementById("sidebarCollapse");
         const menuClose = document.getElementById("menuClose");
         const sidebar = document.getElementById("sidebar");
         const backdrop = document.getElementById("sidebarBackdrop");
@@ -202,6 +218,23 @@
         }
 
         applyTheme(preferredTheme);
+
+        function applySidebarState(collapsed) {
+          root.classList.toggle("sidebar-collapsed", collapsed);
+          if (sidebarCollapse) {
+            sidebarCollapse.setAttribute("aria-expanded", String(!collapsed));
+            sidebarCollapse.setAttribute("aria-label", collapsed ? "Expand sidebar" : "Collapse sidebar");
+            sidebarCollapse.setAttribute("title", collapsed ? "Expand sidebar" : "Collapse sidebar");
+          }
+          try {
+            localStorage.setItem("mindvault-sidebar-collapsed", String(collapsed));
+          } catch (_) {}
+        }
+
+        applySidebarState(root.classList.contains("sidebar-collapsed"));
+        sidebarCollapse?.addEventListener("click", () => {
+          applySidebarState(!root.classList.contains("sidebar-collapsed"));
+        });
 
         themeToggle?.addEventListener("click", () => {
           const nextTheme = root.dataset.theme === "dark" ? "light" : "dark";
