@@ -2,7 +2,20 @@ from django import forms
 
 from apps.vault.models import Material
 
-from .models import Share, StudyGroup
+from .models import Comment, Share, StudyGroup
+
+
+class CommentForm(forms.ModelForm):
+    body = forms.CharField(
+        max_length=2000,
+        strip=True,
+        widget=forms.Textarea(attrs={"rows": 3, "maxlength": 2000}),
+        label="Add a comment",
+    )
+
+    class Meta:
+        model = Comment
+        fields = ["body"]
 
 
 class GroupForm(forms.ModelForm):

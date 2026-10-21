@@ -3,6 +3,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import IntegrityError, transaction
 from django.test import override_settings
 from django.urls import reverse
+from unittest import mock
 
 from apps.core.models import AuditEvent
 from apps.core.testing import BaseTestCase, docx_file, pdf_file
@@ -71,7 +72,7 @@ class MaterialTests(BaseTestCase):
         self.login(self.user)
 
     def _post(self, **extra):
-        data = {"unit": self.unit.pk, "title": "Week 1", "kind": "note", "notes": "hello",
+        data = {"unit": self.unit.pk, "title": "Week 1", "kind": "note", "sensitivity": "internal", "notes": "hello",
                 "tag_text": "Exam, exam, week 1"}
         data.update(extra)
         return self.client.post(reverse("vault:material_create"), data)
@@ -105,14 +106,77 @@ class MaterialTests(BaseTestCase):
         self._post(file=pdf_file())
         m = Material.objects.get()
         old = m.file.name
-        with self.captureOnCommitCallbacks(execute=True):
-            self.client.post(reverse("vault:material_edit", args=[m.pk]), {
-                "unit": self.unit.pk, "title": "Week 1", "kind": "note", "notes": "hello",
+        storage = m.file.storage
+        with self.captureOnCommitCallbacks(execute=False) as callbacks:
+            response = self.client.post(reverse("vault:material_edit", args=[m.pk]), {
+                "unit": self.unit.pk, "title": "Week 1", "kind": "note", "sensitivity": "internal", "notes": "hello",
                 "file": pdf_file("new.pdf", 50)})
+            self.assertRedirects(response, reverse("vault:material_detail", args=[m.pk]))
         m.refresh_from_db()
         self.assertNotEqual(m.file.name, old)
-        self.assertFalse(m.file.storage.exists(old))
-        self.assertTrue(m.file.storage.exists(m.file.name))
+        replacement = m.file.name
+        self.assertEqual(len(callbacks), 1)
+        self.assertTrue(storage.exists(old))  # old file remains until the commit callback runs
+        self.assertTrue(storage.exists(replacement))
+        callbacks[0]()  # execute the captured on-commit deletion callback
+        self.assertFalse(storage.exists(old))
+        self.assertTrue(storage.exists(replacement))
+
+    def test_file_replacement_rollback_keeps_database_and_original_file(self):
+        self._post(file=pdf_file())
+        material = Material.objects.get()
+        original_name = material.file.name
+        storage = material.file.storage
+        original_on_commit = transaction.on_commit
+        replacement_names = []
+        original_storage_save = storage.save
+
+        def remember_replacement(name, content, max_length=None):
+            saved_name = original_storage_save(name, content, max_length=max_length)
+            replacement_names.append(saved_name)
+            return saved_name
+
+        def register_callback_then_fail(callback, *args, **kwargs):
+            original_on_commit(callback, *args, **kwargs)
+            raise RuntimeError("failure after old-file deletion was registered")
+
+        with mock.patch.object(storage, "save", side_effect=remember_replacement):
+            with mock.patch("apps.vault.forms.transaction.on_commit", side_effect=register_callback_then_fail):
+                with self.assertRaisesRegex(RuntimeError, "failure after old-file deletion"):
+                    self.client.post(reverse("vault:material_edit", args=[material.pk]), {
+                        "unit": self.unit.pk, "title": "Week 1", "kind": "note",
+                        "sensitivity": "internal", "notes": "hello",
+                        "file": pdf_file("replacement.pdf", 50),
+                    })
+
+        material.refresh_from_db()
+        self.assertEqual(material.file.name, original_name)
+        self.assertEqual(material.sensitivity, "internal")
+        self.assertTrue(storage.exists(original_name))
+        self.assertEqual(len(replacement_names), 1)
+        self.assertFalse(storage.exists(replacement_names[0]))
+
+    def test_material_delete_rollback_keeps_database_file_and_discards_cleanup(self):
+        material = self.make_material(self.user, with_file=True)
+        original_name = material.file.name
+        storage = material.file.storage
+        original_delete = Material.delete
+
+        def delete_then_fail(instance, *args, **kwargs):
+            original_delete(instance, *args, **kwargs)
+            raise RuntimeError("failure after delete signal")
+
+        with self.captureOnCommitCallbacks(execute=False) as callbacks:
+            with mock.patch.object(Material, "delete", delete_then_fail):
+                with self.assertRaisesRegex(RuntimeError, "failure after delete signal"):
+                    self.client.post(reverse("vault:material_delete", args=[material.pk]))
+
+        material.refresh_from_db()
+        self.assertTrue(Material.objects.filter(pk=material.pk).exists())
+        self.assertEqual(material.file.name, original_name)
+        self.assertTrue(storage.exists(original_name))
+        self.assertEqual(callbacks, [])
+        self.assertFalse(AuditEvent.objects.filter(action="material.delete", target_id=material.pk).exists())
 
     def test_delete_removes_file_and_audits(self):
         m = self.make_material(self.user, with_file=True)
@@ -132,6 +196,10 @@ class MaterialTests(BaseTestCase):
                      "vault:material_download"):
             self.assertEqual(self.client.get(reverse(name, args=[m.pk])).status_code, 403, name)
         self.assertEqual(self.client.post(reverse("vault:material_delete", args=[m.pk])).status_code, 403)
+        self.assertEqual(self.client.post(reverse("vault:material_edit", args=[m.pk]), {
+            "unit": m.unit_id, "title": m.title, "kind": m.kind,
+            "sensitivity": "public", "notes": m.notes,
+        }).status_code, 403)
         self.assertTrue(Material.objects.filter(pk=m.pk).exists())
         self.assertTrue(AuditEvent.objects.filter(actor=intruder, action="access.denied",
                                                   outcome="denied", target_id=m.pk).exists())
@@ -169,6 +237,31 @@ class MaterialTests(BaseTestCase):
         self.assertEqual(Material.objects.count(), 0)
         self._post(doi="10.1000/xyz123", authors="Smith", publication_year="2021", kind="research_paper")
         self.assertEqual(Material.objects.get().doi, "10.1000/xyz123")
+
+    def test_owner_assigns_and_changes_sensitivity(self):
+        self._post(sensitivity="confidential")
+        material = Material.objects.get(owner=self.user)
+        self.assertEqual(material.sensitivity, "confidential")
+        response = self.client.post(reverse("vault:material_edit", args=[material.pk]), {
+            "unit": self.unit.pk, "title": material.title, "kind": material.kind,
+            "sensitivity": "highly_confidential", "notes": material.notes,
+        })
+        self.assertRedirects(response, reverse("vault:material_detail", args=[material.pk]))
+        material.refresh_from_db()
+        self.assertEqual(material.sensitivity, "highly_confidential")
+
+    def test_sensitivity_is_required_when_owner_edits_unclassified_legacy_material(self):
+        material = self.make_material(self.user)
+        response = self.client.post(reverse("vault:material_edit", args=[material.pk]), {
+            "unit": self.unit.pk, "title": material.title, "kind": material.kind, "notes": material.notes,
+        })
+        self.assertEqual(response.status_code, 200)
+        material.refresh_from_db()
+        self.assertIsNone(material.sensitivity)
+
+    def test_material_admin_cannot_override_owner_only_sensitivity_workflow(self):
+        from apps.vault.admin import MaterialAdmin
+        self.assertIn("sensitivity", MaterialAdmin.readonly_fields)
 
 
 class FileValidationTests(BaseTestCase):

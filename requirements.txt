@@ -5,3 +5,5 @@ mysqlclient>=2.2
 python-dotenv>=1.0
 # Serves collected static files in production. Uploads are NOT served by it.
 whitenoise>=6.7
+# Bounded text extraction for advisory PDF sensitive-data scans.
+pypdf>=6.2,<7

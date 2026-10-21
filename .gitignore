@@ -10,3 +10,7 @@ tailwindcss
 .idea/
 .vscode/
 .DS_Store
+
+# Local development artifacts
+sharing-test.log
+tailwindcss.exe

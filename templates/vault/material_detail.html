@@ -5,7 +5,25 @@
 <div class="workspace-page">
   <nav class="page-breadcrumb" aria-label="Breadcrumb"><a href="{% url 'vault:semester_detail' material.unit.course.semester_id %}">{{ material.unit.course.semester.name }}</a><span aria-hidden="true">/</span><a href="{% url 'vault:course_detail' material.unit.course_id %}">{{ material.unit.course }}</a><span aria-hidden="true">/</span><a href="{% url 'vault:unit_detail' material.unit_id %}">{{ material.unit }}</a><span aria-hidden="true">/</span><span aria-current="page">Material</span></nav>
   <header class="page-heading material-heading"><div><span class="eyebrow">{{ material.get_kind_display }}</span><h1>{{ material.title }}</h1><p>{{ material.unit.course }} · {{ material.unit }}</p></div><div class="page-actions">{% if material.has_file %}<a class="button button-primary" href="{% url 'vault:material_download' material.pk %}">Download file</a>{% endif %}<a class="button button-secondary" href="{% url 'vault:material_edit' material.pk %}">Edit</a><a class="button button-secondary" href="{% url 'sharing:share_manage' material.pk %}">Sharing</a><a class="button button-danger" href="{% url 'vault:material_delete' material.pk %}">Delete</a></div></header>
-  <div class="detail-layout"><section class="detail-main">{% if material.notes %}<article class="surface-panel"><div class="section-heading"><div><h2>Notes</h2><p>Personal material notes</p></div></div><div class="prose-content">{{ material.notes|linebreaksbr }}</div></article>{% endif %}{% if material.has_file %}<article class="file-panel"><div class="file-mark" aria-hidden="true">FILE</div><div class="record-copy"><h2>{{ material.original_filename }}</h2><p>{{ material.file_size|filesizeformat }}</p></div><a class="button button-secondary" href="{% url 'vault:material_download' material.pk %}">Download</a></article>{% endif %}</section>
+  <div class="detail-layout"><section class="detail-main">{% if material.notes %}<article class="surface-panel"><div class="section-heading"><div><h2>Notes</h2><p>Personal material notes</p></div></div><div class="prose-content">{{ material.notes|linebreaksbr }}</div></article>{% endif %}{% if material.has_file %}<article class="file-panel"><div class="file-mark" aria-hidden="true">FILE</div><div class="record-copy"><h2>{{ material.original_filename }}</h2><p>{{ material.file_size|filesizeformat }}</p></div><a class="button button-secondary" href="{% url 'vault:material_download' material.pk %}">Download</a></article>{% endif %}
+    {% if material.content_type == "application/pdf" %}
+    <article class="surface-panel" aria-labelledby="scan-heading">
+      <div class="section-heading"><div><h2 id="scan-heading">Sensitive data check</h2><p>Advisory PDF text scan</p></div></div>
+      {% if material.sensitive_data_scan.status == "complete" %}
+        {% if material.sensitive_data_scan.findings %}
+          <p>Potential contact details were detected:</p>
+          <ul>{% for finding in material.sensitive_data_scan.findings %}{% if finding == "email" %}<li>Email address patterns</li>{% elif finding == "phone" %}<li>Phone number patterns</li>{% endif %}{% endfor %}</ul>
+        {% else %}
+          <p>No email address or phone number patterns were detected in the extractable text.</p>
+        {% endif %}
+        <p>This check is incomplete and can produce false positives or miss information.</p>
+      {% else %}
+        <p>The scan was unavailable for this PDF. It may be scanned/image-only, malformed, encrypted, or too complex to process within the safety limits. This does not mean the file is clear.</p>
+      {% endif %}
+      <p>Review the document yourself. This advisory does not change sensitivity or sharing permissions.</p>
+    </article>
+    {% endif %}
+    </section>
     <aside class="surface-panel metadata-panel" aria-labelledby="metadata-heading"><h2 id="metadata-heading">Details</h2><dl class="metadata-list"><div><dt>Type</dt><dd>{{ material.get_kind_display }}</dd></div><div><dt>Course</dt><dd>{{ material.unit.course }}</dd></div><div><dt>Unit</dt><dd><a href="{% url 'vault:unit_detail' material.unit_id %}">{{ material.unit }}</a></dd></div>{% if material.authors %}<div><dt>Authors</dt><dd>{{ material.authors }}</dd></div>{% endif %}{% if material.publication_year %}<div><dt>Publication year</dt><dd>{{ material.publication_year }}</dd></div>{% endif %}{% if material.doi %}<div><dt>DOI</dt><dd><a href="https://doi.org/{{ material.doi }}" rel="noopener noreferrer">{{ material.doi }}</a></dd></div>{% endif %}{% if material.tags.all %}<div><dt>Tags</dt><dd class="tag-list">{% for t in material.tags.all %}<span class="tag">{{ t.name }}</span>{% endfor %}</dd></div>{% endif %}</dl></aside>
   </div>
 </div>

@@ -1,4 +1,74 @@
 {% extends "base.html" %}
 {% block title %}{{ material.title }} | Shared material{% endblock %}
 {% block page_label %}Shared material{% endblock %}
-{% block content %}<div class="workspace-page"><nav class="page-breadcrumb" aria-label="Breadcrumb"><a href="{% url 'sharing:shared_list' %}">Shared with me</a><span aria-hidden="true">/</span><span aria-current="page">Material</span></nav><header class="page-heading"><div><span class="eyebrow">{{ material.get_kind_display }} · SHARED BY {{ material.owner.full_name|default:material.owner.email }}</span><h1>{{ material.title }}</h1><p>Shared material available through one of your groups.</p></div><div class="page-actions">{% if can_download and material.has_file %}<a class="button button-primary" href="{% url 'sharing:shared_download' material.pk %}">Download file</a>{% endif %}{% if can_edit %}<a class="button button-secondary" href="{% url 'sharing:shared_edit' material.pk %}">Edit title and notes</a>{% endif %}</div></header><div class="detail-layout"><section class="detail-main">{% if material.has_file %}<article class="file-panel"><div class="file-mark" aria-hidden="true">FILE</div><div class="record-copy"><h2>{{ material.original_filename }}</h2><p>{{ material.file_size|filesizeformat }}{% if not can_download %} · Download not allowed{% endif %}</p></div>{% if can_download %}<a class="button button-secondary" href="{% url 'sharing:shared_download' material.pk %}">Download</a>{% endif %}</article>{% endif %}{% if material.notes %}<article class="surface-panel"><div class="section-heading"><div><h2>Notes</h2></div></div><div class="prose-content">{{ material.notes|linebreaksbr }}</div></article>{% endif %}</section><aside class="surface-panel metadata-panel" aria-labelledby="details-heading"><h2 id="details-heading">Details</h2><dl class="metadata-list"><div><dt>Type</dt><dd>{{ material.get_kind_display }}</dd></div><div><dt>Shared by</dt><dd>{{ material.owner.full_name|default:material.owner.email }}</dd></div>{% if material.unit %}<div><dt>Course</dt><dd>{{ material.unit.course }}</dd></div><div><dt>Unit</dt><dd>{{ material.unit }}</dd></div>{% endif %}{% if material.authors %}<div><dt>Authors</dt><dd>{{ material.authors }}</dd></div>{% endif %}{% if material.publication_year %}<div><dt>Publication year</dt><dd>{{ material.publication_year }}</dd></div>{% endif %}{% if material.doi %}<div><dt>DOI</dt><dd>{{ material.doi }}</dd></div>{% endif %}</dl></aside></div></div>{% endblock %}
+{% block content %}
+<div class="workspace-page">
+  <nav class="page-breadcrumb" aria-label="Breadcrumb">
+    <a href="{% url 'sharing:shared_list' %}">Shared with me</a><span aria-hidden="true">/</span><span aria-current="page">Material</span>
+  </nav>
+  <header class="page-heading">
+    <div>
+      <span class="eyebrow">{{ material.get_kind_display }} · SHARED BY {{ material.owner.full_name|default:material.owner.email }}</span>
+      <h1>{{ material.title }}</h1>
+      <p>Shared material available through one of your groups.</p>
+    </div>
+    <div class="page-actions">
+      {% if can_download and material.has_file %}<a class="button button-primary" href="{% url 'sharing:shared_download' material.pk %}">Download file</a>{% endif %}
+      {% if can_edit %}<a class="button button-secondary" href="{% url 'sharing:shared_edit' material.pk %}">Edit title and notes</a>{% endif %}
+    </div>
+  </header>
+  <div class="detail-layout">
+    <section class="detail-main">
+      {% if material.has_file %}
+      <article class="file-panel">
+        <div class="file-mark" aria-hidden="true">FILE</div>
+        <div class="record-copy"><h2>{{ material.original_filename }}</h2><p>{{ material.file_size|filesizeformat }}{% if not can_download %} · Download not allowed{% endif %}</p></div>
+        {% if can_download %}<a class="button button-secondary" href="{% url 'sharing:shared_download' material.pk %}">Download</a>{% endif %}
+      </article>
+      {% endif %}
+      {% if material.notes %}
+      <article class="surface-panel">
+        <div class="section-heading"><div><h2>Notes</h2></div></div>
+        <div class="prose-content">{{ material.notes|linebreaksbr }}</div>
+      </article>
+      {% endif %}
+      <section class="surface-panel" aria-labelledby="comments-heading">
+        <div class="section-heading"><div><h2 id="comments-heading">Comments</h2><p>{{ comments|length }} comment{{ comments|length|pluralize }}</p></div></div>
+        {% if comments %}
+        <ol class="record-list" aria-label="Comments">
+          {% for comment in comments %}
+          <li class="record-row">
+            <div class="record-copy">
+              <p>{{ comment.body|linebreaksbr }}</p>
+              <small>{{ comment.author.full_name|default:comment.author.email }} · <time datetime="{{ comment.created_at|date:'c' }}">{{ comment.created_at|date:"M j, Y, g:i a" }}</time></small>
+            </div>
+          </li>
+          {% endfor %}
+        </ol>
+        {% else %}<p class="empty-state">No comments yet.</p>{% endif %}
+        <form method="post" action="{% url 'sharing:shared_detail' material.pk %}" class="styled-form">
+          {% csrf_token %}
+          {% if comment_form.non_field_errors %}<div class="form-errors" role="alert">{{ comment_form.non_field_errors }}</div>{% endif %}
+          <div class="form-field">
+            <label for="{{ comment_form.body.id_for_label }}">{{ comment_form.body.label }}</label>
+            {{ comment_form.body }}
+            {% for error in comment_form.body.errors %}<p class="field-error" role="alert">{{ error }}</p>{% endfor %}
+          </div>
+          <button class="button button-primary" type="submit">Post comment</button>
+        </form>
+      </section>
+    </section>
+    <aside class="surface-panel metadata-panel" aria-labelledby="details-heading">
+      <h2 id="details-heading">Details</h2>
+      <dl class="metadata-list">
+        <div><dt>Type</dt><dd>{{ material.get_kind_display }}</dd></div>
+        <div><dt>Shared by</dt><dd>{{ material.owner.full_name|default:material.owner.email }}</dd></div>
+        {% if material.unit %}<div><dt>Course</dt><dd>{{ material.unit.course }}</dd></div><div><dt>Unit</dt><dd>{{ material.unit }}</dd></div>{% endif %}
+        {% if material.authors %}<div><dt>Authors</dt><dd>{{ material.authors }}</dd></div>{% endif %}
+        {% if material.publication_year %}<div><dt>Publication year</dt><dd>{{ material.publication_year }}</dd></div>{% endif %}
+        {% if material.doi %}<div><dt>DOI</dt><dd>{{ material.doi }}</dd></div>{% endif %}
+      </dl>
+    </aside>
+  </div>
+</div>
+{% endblock %}
