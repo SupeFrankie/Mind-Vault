@@ -8,4 +8,5 @@ urlpatterns = [
     path("login/", views.MindVaultLoginView.as_view(), name="login"),
     path("logout/", views.MindVaultLogoutView.as_view(), name="logout"),
     path("profile/", views.profile, name="profile"),
+    path("auth/<str:provider>/", views.coming_soon, name="coming_soon"),
 ]
