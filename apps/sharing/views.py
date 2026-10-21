@@ -11,9 +11,9 @@ from apps.vault.models import Course, Material
 from apps.vault.services import filter_materials
 
 from . import risk, services
-from .forms import GroupForm, JoinGroupForm, SharedMaterialEditForm, ShareForm
+from .forms import CommentForm, GroupForm, JoinGroupForm, SharedMaterialEditForm, ShareForm
 from .models import Membership, Share, StudyGroup
-from .permissions import can_access, require_access, shared_with
+from .permissions import can_access, effective_access_review, require_access, shared_with
 
 
 def _member_group_or_deny(request, pk):
@@ -131,11 +131,15 @@ def share_manage(request, material_id):
         else:
             messages.success(request, "Share created." if created else "Share updated.")
             return redirect("sharing:share_manage", material_id=material.pk)
+    shares = list(material.shares.select_related("group"))
+    for share in shares:
+        share.can_apply_safer_settings = services.safer_settings_available(material, share)
     ctx = {
         "material": material,
         "form": form,
         "assessment": assessment,
-        "shares": material.shares.select_related("group"),
+        "shares": shares,
+        "effective_access": effective_access_review(material),
         "risk_rules": {"audience": risk.AUDIENCE_POINTS, "permission": risk.PERMISSION_POINTS,
                        "download": 12, "medium_from": risk.MEDIUM_FROM, "high_from": risk.HIGH_FROM},
     }
@@ -154,6 +158,21 @@ def share_revoke(request, pk):
     return redirect("sharing:share_manage", material_id=share.material_id)
 
 
+@login_required
+@require_POST
+def share_safer_settings(request, pk):
+    share = get_object_or_404(Share.objects.select_related("material"), pk=pk)
+    require_access(request, share.material, "share")
+    material_id = share.material_id
+    try:
+        services.apply_safer_settings(request, share.pk)
+    except services.ShareRejected as exc:
+        messages.error(request, str(exc))
+    else:
+        messages.success(request, "Safer settings applied: Viewer access with downloads disabled.")
+    return redirect("sharing:share_manage", material_id=material_id)
+
+
 # ---------- shared with me ----------
 @login_required
 def shared_list(request):
@@ -169,11 +188,22 @@ def shared_list(request):
 def shared_detail(request, material_id):
     material = get_object_or_404(Material.objects.select_related("owner", "unit__course__semester"), pk=material_id)
     require_access(request, material, "view")
+    comment_form = CommentForm(request.POST if request.method == "POST" else None)
+    if request.method == "POST" and comment_form.is_valid():
+        comment = comment_form.save(commit=False)
+        comment.material = material
+        comment.author = request.user
+        comment.save()
+        audit.record("material.comment", "allowed", request=request, target=material)
+        messages.success(request, "Comment added.")
+        return redirect("sharing:shared_detail", material_id=material.pk)
     ctx = {
         "material": material,
         "is_owner": material.owner_id == request.user.pk,
         "can_download": material.has_file and can_access(request.user, material, "download"),
         "can_edit": can_access(request.user, material, "edit"),
+        "comments": material.comments.select_related("author").order_by("created_at", "pk"),
+        "comment_form": comment_form,
     }
     return render(request, "sharing/shared_detail.html", ctx)
 

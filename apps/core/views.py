@@ -5,6 +5,7 @@ from django.core.paginator import Paginator
 from django.shortcuts import render
 
 from apps.sharing.models import Membership, Share
+from apps.sharing.permissions import shared_with
 from apps.vault.models import Material, Semester
 
 from .models import AuditEvent
@@ -19,10 +20,7 @@ def dashboard(request):
         "material_count": Material.objects.filter(owner=user).count(),
         "group_count": Membership.objects.filter(user=user).count(),
         "shared_by_me_count": Share.objects.filter(material__owner=user).count(),
-        "shared_with_me_count": Material.objects.filter(shares__group__memberships__user=user)
-        .exclude(owner=user)
-        .distinct()
-        .count(),
+        "shared_with_me_count": shared_with(user).count(),
         "recent_materials": Material.objects.filter(owner=user).select_related("unit__course")[:5],
         "recent_events": AuditEvent.objects.filter(actor=user)[:5],
     }

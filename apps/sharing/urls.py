@@ -13,6 +13,7 @@ urlpatterns = [
     path("groups/<int:pk>/members/<int:user_id>/remove/", v.member_remove, name="member_remove"),
     path("sharing/materials/<int:material_id>/", v.share_manage, name="share_manage"),
     path("sharing/shares/<int:pk>/revoke/", v.share_revoke, name="share_revoke"),
+    path("sharing/shares/<int:pk>/safer-settings/", v.share_safer_settings, name="share_safer_settings"),
     path("shared/", v.shared_list, name="shared_list"),
     path("shared/<int:material_id>/", v.shared_detail, name="shared_detail"),
     path("shared/<int:material_id>/download/", v.shared_download, name="shared_download"),

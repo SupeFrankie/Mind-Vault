@@ -1,6 +1,8 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
+from django.db import transaction
+from django.http import Http404
 from django.shortcuts import redirect, render
 from django.views.decorators.http import require_POST
 
@@ -182,7 +184,8 @@ def material_create(request):
     unit_id = request.GET.get("unit", "")
     if unit_id.isdigit():
         initial["unit"] = int(unit_id)  # still validated against the owner's units by the form
-    form = MaterialForm(request.POST or None, request.FILES or None, owner=request.user, initial=initial)
+    form = MaterialForm(request.POST or None, request.FILES or None, owner=request.user,
+                        request=request, initial=initial)
     if request.method == "POST" and form.is_valid():
         material = form.save()
         messages.success(request, f"'{material.title}' saved.")
@@ -199,7 +202,8 @@ def material_detail(request, pk):
 @login_required
 def material_edit(request, pk):
     material = get_owned(request, Material, pk, ("unit__course__semester",))
-    form = MaterialForm(request.POST or None, request.FILES or None, instance=material, owner=request.user)
+    form = MaterialForm(request.POST or None, request.FILES or None, instance=material,
+                        owner=request.user, request=request)
     if request.method == "POST" and form.is_valid():
         form.save()
         messages.success(request, "Material updated.")
@@ -211,8 +215,17 @@ def material_edit(request, pk):
 def material_delete(request, pk):
     material = get_owned(request, Material, pk)
     if request.method == "POST":
-        audit.record("material.delete", "allowed", request=request, target=material, title=material.title)
-        material.delete()
+        with transaction.atomic():
+            # Serialize deletion with share updates/revocation (material is always
+            # their first lock). Recheck ownership against the locked row.
+            material = Material.objects.select_for_update().filter(
+                pk=pk, owner=request.user
+            ).first()
+            if material is None:
+                raise Http404
+            audit.record("material.delete", "allowed", request=request,
+                         target=material, title=material.title)
+            material.delete()
         messages.success(request, "Material deleted.")
         return redirect("vault:material_library")
     n = material.shares.count()

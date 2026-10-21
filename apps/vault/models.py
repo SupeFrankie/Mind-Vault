@@ -95,13 +95,23 @@ class Material(models.Model):
         RESEARCH = "research_paper", "Research paper"
         OTHER = "other", "Other"
 
+    class Sensitivity(models.TextChoices):
+        PUBLIC = "public", "Public"
+        INTERNAL = "internal", "Internal"
+        CONFIDENTIAL = "confidential", "Confidential"
+        HIGHLY_CONFIDENTIAL = "highly_confidential", "Highly Confidential"
+
     # Deletion: removing a unit/course/semester/user deletes its materials (and, via Share's
     # CASCADE, their shares). Audit history survives because AuditEvent has no FK to Material.
     owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="materials")
     unit = models.ForeignKey(Unit, on_delete=models.CASCADE, related_name="materials")
     title = models.CharField(max_length=200)
     kind = models.CharField(max_length=20, choices=Kind.choices, default=Kind.NOTE)
+    # Nullable during the staged rollout: existing records are not classified by inference.
+    sensitivity = models.CharField(max_length=20, choices=Sensitivity.choices, null=True, blank=True)
     file = models.FileField(upload_to=material_upload_path, blank=True)
+    # Stores only scan status and generic finding categories, never extracted text/values.
+    sensitive_data_scan = models.JSONField(default=dict, blank=True, editable=False)
     original_filename = models.CharField(max_length=255, blank=True)
     content_type = models.CharField(max_length=100, blank=True)  # assigned by server, see validators
     file_size = models.PositiveIntegerField(default=0)

@@ -9,10 +9,8 @@ Points (frontend may mirror these for display; the SERVER is the only authority)
     permission view=5      edit=30                (deck's "comment" level is not implemented)
     download   False=0     True=12
 Levels:  score <= 34 low | 35..59 medium | >= 60 high
-Policy:  public audience -> blocked (no public links in the MVP)
-         high            -> blocked
-         medium          -> allowed only with explicit confirmation from the user
-         low             -> allowed
+Policy enforcement lives in apps.sharing.policy. This module only calculates
+the explanatory score and least-privilege suggestion.
 """
 from dataclasses import dataclass
 
@@ -29,8 +27,6 @@ LOW, MEDIUM, HIGH = "low", "medium", "high"
 class RiskAssessment:
     score: int
     level: str
-    allowed: bool
-    requires_confirmation: bool
     message: str
     # Lowest-privilege alternative; None when the requested settings are already that.
     recommended: dict | None
@@ -56,15 +52,10 @@ def assess_share(audience: str, permission: str, allow_download: bool) -> RiskAs
     current = {"audience": audience, "permission": permission, "allow_download": allow_download}
     recommended = None if safest == current else safest
 
-    if audience == "public":
-        return RiskAssessment(score, level, False, False,
-                              "Public sharing is not allowed. Share with a study group instead.", recommended)
-    if level == HIGH:
-        return RiskAssessment(score, level, False, False,
-                              "High risk: this combination exposes the material too widely. "
-                              "Use view-only with downloads disabled.", recommended)
     if level == MEDIUM:
-        return RiskAssessment(score, level, True, True,
-                              "Medium risk: members could change or copy this material. "
-                              "Consider view-only or disabling downloads, or confirm to continue.", recommended)
-    return RiskAssessment(score, level, True, False, "Low risk: least-privilege settings applied.", recommended)
+        message = "Medium risk: members could change or copy this material. Consider view-only or disabling downloads."
+    elif level == HIGH:
+        message = "High risk: this combination exposes the material too widely. Consider view-only with downloads disabled."
+    else:
+        message = "Low risk: least-privilege settings applied."
+    return RiskAssessment(score, level, message, recommended)

@@ -2633,6 +2633,63 @@ h3,
   .sidebar { width: min(290px, 86vw); }
 }
 
+.share-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: stretch;
+  gap: 9px;
+}
+
+.share-row-info {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  align-items: baseline;
+  gap: 6px 18px;
+}
+
+.share-row-info .record-title,
+.share-row-info p {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.share-row-info p {
+  margin: 0;
+  text-align: right;
+}
+
+.share-row-actions {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.share-row-actions form {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px 8px;
+  min-width: 0;
+}
+
+@media (max-width: 640px) {
+  .share-row-info {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 3px;
+  }
+
+  .share-row-info p {
+    text-align: left;
+  }
+
+  .share-row-actions {
+    justify-content: flex-start;
+  }
+}
 /* Sign-in options, coming-soon page, legal pages */
 .auth-divider { display: flex; align-items: center; gap: 12px; margin: 20px 0 14px; color: var(--text-secondary); font-size: .72rem; font-weight: 650; }
 .auth-divider::before, .auth-divider::after { content: ""; flex: 1; height: 1px; background: var(--border); }
