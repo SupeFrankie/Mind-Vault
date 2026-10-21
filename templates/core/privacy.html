@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block title %}Privacy Policy | MindVault{% endblock %}
+{% block page_label %}Privacy Policy{% endblock %}
+{% block content %}<div class="workspace-page policy-page">
+<header class="page-heading"><div><span class="eyebrow">LEGAL</span><h1>Privacy Policy</h1><p>Last updated: {{ last_updated }}. Effective date: <span class="placeholder">[to be set at public release]</span></p></div></header>
+<article class="surface-panel policy-content">
+
+<p class="policy-note">MindVault is a student hackathon project and is still in development. This policy describes what the software does today. Items shown as <span class="placeholder">[placeholders]</span> must be completed by the project team before the site is made public, and the policy should be reviewed by a qualified person. This page is not legal advice and does not claim that MindVault meets every legal requirement.</p>
+
+<h2>1. What MindVault is</h2>
+<p>MindVault is a web platform where university students organise academic materials (semesters, courses, units, notes and files), search them, form study groups and share selected materials with those groups.</p>
+
+<h2>2. Who is responsible for your data</h2>
+<p>MindVault is built by Team SOLVEX. No registered company or other legal entity has been identified for the project. Data controller: <span class="placeholder">[name of the responsible person or organisation]</span>. Contact: <span class="placeholder">[privacy contact email]</span>. Postal address: <span class="placeholder">[address, if any]</span>. Data Protection Officer: <span class="placeholder">[name, or "none appointed"]</span>.</p>
+
+<h2>3. Information we collect</h2>
+<h3>Information you give us</h3>
+<ul>
+<li><strong>Account details:</strong> your email address, full name, and (optionally) your university. Your password is not stored as text; only a salted hash is kept.</li>
+<li><strong>Academic content you add:</strong> semester, course and unit names; material titles, types, notes and tags; optional research details (authors, publication year, DOI); and the files you upload, together with each file's original name, size and type.</li>
+<li><strong>Study groups:</strong> group names, the join code of each group, and who belongs to it.</li>
+<li><strong>Sharing settings:</strong> which material is shared with which group, the permission granted (view or edit), whether downloads are allowed, and the risk score the Security Engine calculated for that setting.</li>
+</ul>
+<h3>Information created when you use the service</h3>
+<ul>
+<li><strong>Session and security cookies</strong> needed to keep you signed in (see the <a href="{% url 'core:cookies' %}">Cookie Policy</a>).</li>
+<li><strong>Security activity log:</strong> for events such as sharing a material, changing or revoking a share, joining or leaving a group, failed join-code attempts and blocked or denied access, we record the time, your email address, the action, the item concerned, the outcome and your IP address as seen by the server.</li>
+<li><strong>Account dates:</strong> when you registered and when you last signed in.</li>
+</ul>
+<h3>What we do not collect</h3>
+<p>MindVault has no analytics, advertising or tracking tools, does not ask for your location, phone number or payment details, and does not currently use Google, Apple or university sign-in (those options are marked "coming soon").</p>
+
+<h2>4. Why we use it</h2>
+<ul>
+<li>To create your account and let you sign in.</li>
+<li>To store, organise, search and display your materials.</li>
+<li>To let you share materials with study groups and to enforce who may view, edit or download them.</li>
+<li>To protect the service and its users, for example by checking sharing risk and keeping a record of security-relevant events.</li>
+<li>To fix problems and improve the service. We do not use your content for advertising and we do not sell your information.</li>
+</ul>
+
+<h2>5. Your materials and uploaded files</h2>
+<p>Materials are private to you by default. Uploaded files are stored on the server in a location that is not reachable by a web address; they can only be opened or downloaded through MindVault after it checks that you are the owner or that the material has been shared with a group you belong to with download permission. Allowed file types are PDF, DOCX, PPTX, TXT, MD, PNG and JPG, up to {{ max_upload_mb }} MB each. MindVault does not currently scan uploads for malware. Please upload only material you have the right to share; MindVault does not check copyright.</p>
+
+<h2>6. Study groups and sharing</h2>
+<ul>
+<li>Joining a group does not give anyone access to your materials. Only materials you explicitly share with a group become available to its members.</li>
+<li>Members of a group can see the names of the group's members and the titles, types and owners of materials shared with that group, and can open them according to the permission you set. "Edit" lets a member change a material's title and notes only; it does not allow downloading the file, deleting the material or sharing it further.</li>
+<li>Whoever holds a group's join code can join the group. The code is shown only to the group's owner; please share it only with people you trust.</li>
+<li>If you remove a share, delete a material, or leave a group, access ends. Copies that someone already downloaded cannot be recalled.</li>
+</ul>
+
+<h2>7. Sign-in and sessions</h2>
+<p>You sign in with your email address and password. After sign-in, MindVault keeps a session so you stay signed in for up to {{ session_days }} days, or until you log out. Google, Apple and school-email sign-in are not available; their pages are placeholders that do not collect credentials or contact those services.</p>
+
+<h2>8. Who else sees your information</h2>
+<ul>
+<li><strong>Other users:</strong> only as described in section 6.</li>
+<li><strong>Google Fonts:</strong> pages load fonts from Google's servers (fonts.googleapis.com and fonts.gstatic.com). Your browser therefore sends Google your IP address and basic browser information when a page loads. MindVault does not control how Google handles that data; see Google's own privacy policy. The team may replace this with fonts hosted on MindVault's own server.</li>
+<li><strong>Hosting provider:</strong> when MindVault is deployed, the hosting and database provider will store the data on our behalf: <span class="placeholder">[provider name and country]</span>.</li>
+<li><strong>Administrators:</strong> project administrators with database or server access can technically access stored data, including materials. They should only do so to run, secure or repair the service or to respond to a request from you.</li>
+<li>We do not sell personal information and do not share it with advertisers. We may disclose information if the law requires it.</li>
+</ul>
+
+<h2>9. How long we keep information</h2>
+<p>MindVault does not currently delete data automatically. Account details and materials are kept until you ask us to delete them or they are removed by an administrator. Security activity records are kept to help investigate misuse, and at present they continue to hold the email address and IP address recorded at the time even after an account is deleted. Retention period to be adopted before public release: <span class="placeholder">[period]</span>.</p>
+
+<h2>10. How we protect it</h2>
+<ul>
+<li>Passwords are stored as salted hashes using Django's password hashing, and sign-in passwords are checked against basic strength rules.</li>
+<li>Every request that changes data is protected against cross-site request forgery.</li>
+<li>Access to materials, downloads and sharing is checked on the server for every request, not just hidden in the interface.</li>
+<li>Uploads are checked for type, size and content before they are stored, and are stored under random names.</li>
+<li>When deployed, the production configuration is intended to serve the site over HTTPS only and to mark cookies as secure.</li>
+</ul>
+<p>No system is perfectly secure. Known gaps today: no malware scanning of uploads, no two-factor authentication, and no rate limiting on sign-in attempts.</p>
+
+<h2>11. Your rights</h2>
+<p>Kenya's Data Protection Act, 2019 gives you rights over your personal data, including the right to be informed about how it is used, to access it, to have inaccurate data corrected, to object to certain processing, and to have your data deleted in the circumstances the Act sets out. You can correct your name and university on your profile page. For anything else (a copy of your data, deletion of your account, or an objection), contact us at <span class="placeholder">[privacy contact email]</span>. We will respond within the time the law requires. If you are not satisfied, you may complain to the Office of the Data Protection Commissioner (ODPC) in Kenya.</p>
+
+<h2>12. Transfers outside Kenya</h2>
+<p>Google Fonts requests are served by Google, which may process data outside Kenya. Where MindVault is hosted and whether data leaves Kenya depends on the hosting provider chosen: <span class="placeholder">[to be confirmed]</span>.</p>
+
+<h2>13. Who may use MindVault</h2>
+<p>MindVault is intended for university students. Minimum age: <span class="placeholder">[team to confirm]</span>.</p>
+
+<h2>14. Changes to this policy</h2>
+<p>When this policy changes we will update the "Last updated" date above and, for significant changes, tell users through MindVault or by email.</p>
+
+<h2>15. Contact</h2>
+<p>Questions about privacy: <span class="placeholder">[privacy contact email]</span>. See also our <a href="{% url 'core:cookies' %}">Cookie Policy</a>.</p>
+</article></div>{% endblock %}

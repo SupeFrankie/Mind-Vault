@@ -2,8 +2,9 @@ from django.contrib import messages
 from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.views import LoginView, LogoutView
+from django.http import Http404
 from django.shortcuts import redirect, render
-from django.views.decorators.http import require_http_methods
+from django.views.decorators.http import require_GET, require_http_methods
 
 from .forms import EmailLoginForm, ProfileForm, RegisterForm
 
@@ -39,3 +40,30 @@ def profile(request):
         messages.success(request, "Profile updated.")
         return redirect("accounts:profile")
     return render(request, "accounts/profile.html", {"form": form})
+
+
+# Placeholder sign-in options. Nothing here authenticates, redirects off-site or collects credentials.
+# Real OAuth/OIDC/SAML integration needs provider credentials and (for school email) institutional approval.
+COMING_SOON_PROVIDERS = {
+    "google": {
+        "name": "Google",
+        "message": "Google sign-in is coming soon. For now, please use the existing sign-in method.",
+    },
+    "apple": {
+        "name": "Apple",
+        "message": "Apple sign-in is coming soon. For now, please use the existing sign-in method.",
+    },
+    "school-email": {
+        "name": "School email",
+        "message": "School-email authentication is coming soon. We plan to explore authorised "
+        "integration with university authentication systems.",
+    },
+}
+
+
+@require_GET
+def coming_soon(request, provider):
+    info = COMING_SOON_PROVIDERS.get(provider)
+    if info is None:  # allowlist lookup: unknown names are a plain 404, never an error
+        raise Http404("Unknown sign-in option.")
+    return render(request, "accounts/coming_soon.html", info)
