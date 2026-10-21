@@ -20,6 +20,9 @@ Templates currently in `templates/` are functional, unstyled placeholders: resty
 | `/accounts/login/` | accounts:login | GET, POST | fields: username (the email), password, next |
 | `/accounts/logout/` | accounts:logout | POST | |
 | `/accounts/profile/` | accounts:profile | GET, POST | full_name, university |
+| `/accounts/auth/<provider>/` | accounts:coming_soon | GET | `google`, `apple`, `school-email` only; other names 404. Informational page, no form, no credentials. Context: `name`, `message` |
+| `/privacy/` | core:privacy | GET | public. Context: last_updated, max_upload_mb, session_days |
+| `/cookies/` | core:cookies | GET | public. Cookie names/lifetimes come from Django settings |
 | `/` | core:dashboard | GET | ctx: semester_count, material_count, group_count, shared_by_me_count, shared_with_me_count, recent_materials, recent_events |
 | `/activity/` | core:activity | GET | ctx: page (paginated AuditEvent, own events only) |
 | `/vault/` | vault:semester_list | GET | ctx: semesters |
