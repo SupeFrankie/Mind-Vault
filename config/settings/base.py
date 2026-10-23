@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 load_dotenv(BASE_DIR / ".env")
+load_dotenv(BASE_DIR / ".env.local")
 
 
 def env_bool(name: str, default: bool = False) -> bool:
@@ -24,6 +25,9 @@ if not SECRET_KEY:
     raise RuntimeError("DJANGO_SECRET_KEY is not set. Copy .env.example to .env and set it.")
 ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS")
 CSRF_TRUSTED_ORIGINS = env_list("DJANGO_CSRF_TRUSTED_ORIGINS")
+
+CLERK_SECRET_KEY = os.environ.get("CLERK_SECRET_KEY", "")
+CLERK_PUBLISHABLE_KEY = os.environ.get("CLERK_PUBLISHABLE_KEY", "") or os.environ.get("NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY", "")
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -63,6 +67,7 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
+                "apps.accounts.context_processors.clerk_context",
             ],
         },
     }

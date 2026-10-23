@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% block title %}Authenticating | MindVault{% endblock %}
+{% block page_label %}Authenticating{% endblock %}
+
+{% block content %}
+<div class="auth-page">
+  <section class="surface-panel auth-panel" style="text-align: center; padding: 2.5rem;">
+    <h2>Completing sign in...</h2>
+    <p id="auth-status">Please wait while we complete your authentication with Clerk.</p>
+    <div id="auth-spinner" style="margin-top: 1.5rem; display: inline-block;">
+      <svg style="width: 2.5rem; height: 2.5rem; animation: mv-spin 1s linear infinite;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <circle style="opacity: 0.25;" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+        <path style="opacity: 0.75;" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+      </svg>
+    </div>
+  </section>
+</div>
+
+<style>
+@keyframes mv-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+</style>
+
+<script async crossorigin="anonymous"
+  data-clerk-publishable-key="{{ CLERK_PUBLISHABLE_KEY }}"
+  src="https://cdn.jsdelivr.net/npm/@clerk/clerk-js@latest/dist/clerk.browser.js"
+  type="text/javascript"></script>
+
+<script>
+window.addEventListener('load', async function() {
+  const statusEl = document.getElementById('auth-status');
+
+  async function syncSessionWithDjango() {
+    if (!window.Clerk || !window.Clerk.session) return false;
+    statusEl.textContent = 'Establishing MindVault workspace session...';
+    try {
+      const token = await window.Clerk.session.getToken();
+      if (!token) return false;
+      const response = await fetch('/accounts/clerk-login/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + token
+        },
+        body: JSON.stringify({ token: token })
+      });
+      const data = await response.json();
+      if (data.status === 'success') {
+        window.location.href = data.redirect_url || '/';
+        return true;
+      } else {
+        statusEl.textContent = 'Authentication error: ' + (data.message || 'Unknown error');
+        return false;
+      }
+    } catch (err) {
+      console.error('Session sync error:', err);
+      statusEl.textContent = 'Error syncing session: ' + err.message;
+      return false;
+    }
+  }
+
+  try {
+    if (!window.Clerk) {
+      statusEl.textContent = 'Failed to load Clerk authentication library.';
+      return;
+    }
+    await window.Clerk.load();
+
+    if (window.Clerk.session) {
+      const success = await syncSessionWithDjango();
+      if (success) return;
+    }
+
+    await window.Clerk.handleRedirectCallback({}, async function(to) {
+      const success = await syncSessionWithDjango();
+      if (!success) {
+        window.location.href = to || '/';
+      }
+    });
+
+    if (window.Clerk.session) {
+      await syncSessionWithDjango();
+    }
+  } catch (err) {
+    console.error('SSO Callback error:', err);
+    if (window.Clerk && window.Clerk.session) {
+      await syncSessionWithDjango();
+    } else {
+      statusEl.textContent = 'Authentication error: ' + (err.message || err);
+    }
+  }
+});
+</script>
+{% endblock %}
