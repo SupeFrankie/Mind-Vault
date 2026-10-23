@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}{{ name }} sign-in | MindVault{% endblock %}
+{% block page_label %}{{ name }} sign-in{% endblock %}
+{% block content %}<div class="workspace-page"><section class="surface-panel coming-soon" aria-labelledby="cs-title">
+<span class="eyebrow">COMING SOON</span>
+<h1 id="cs-title">{{ name }} sign-in is not available yet</h1>
+<p>{{ message }}</p>
+<div class="page-actions"><a class="button button-primary" href="{% url 'accounts:login' %}">Back to log in</a></div>
+</section></div>{% endblock %}

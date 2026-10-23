@@ -1,5 +1,7 @@
 from django.contrib import messages
+from django.conf import settings
 from django.contrib.auth.decorators import login_required
+from django.contrib.messages.storage.cookie import CookieStorage
 from django.core.paginator import Paginator
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -79,3 +81,30 @@ def notifications_mark_all_read(request):
 
 def permission_denied(request, exception=None):
     return render(request, "403.html", {"reason": str(exception) if exception else ""}, status=403)
+
+
+LAST_UPDATED = "21 October 2026"
+
+
+def privacy_policy(request):
+    """Public page. Values that describe real behaviour are read from settings, not retyped."""
+    return render(request, "core/privacy.html", {
+        "last_updated": LAST_UPDATED,
+        "max_upload_mb": settings.MAX_UPLOAD_BYTES // (1024 * 1024),
+        "session_days": settings.SESSION_COOKIE_AGE // 86400,
+    })
+
+
+def cookie_policy(request):
+    return render(request, "core/cookies.html", {
+        "last_updated": LAST_UPDATED,
+        "session_cookie": settings.SESSION_COOKIE_NAME,
+        "csrf_cookie": settings.CSRF_COOKIE_NAME,
+        "messages_cookie": CookieStorage.cookie_name,
+        "session_days": settings.SESSION_COOKIE_AGE // 86400,
+        "csrf_days": settings.CSRF_COOKIE_AGE // 86400,
+        "samesite": settings.SESSION_COOKIE_SAMESITE,
+        "session_httponly": settings.SESSION_COOKIE_HTTPONLY,
+        "csrf_httponly": settings.CSRF_COOKIE_HTTPONLY,
+        "secure_cookies": settings.SESSION_COOKIE_SECURE and settings.CSRF_COOKIE_SECURE,
+    })

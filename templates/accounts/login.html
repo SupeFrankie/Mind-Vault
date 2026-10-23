@@ -1,4 +1,10 @@
 {% extends "base.html" %}
 {% block title %}Log in | MindVault{% endblock %}
 {% block page_label %}Log in{% endblock %}
-{% block content %}<div class="auth-page"><div class="auth-intro"><span class="eyebrow">MINDVAULT WORKSPACE</span><h1>Welcome back.</h1><p>Return to your academic work and research materials.</p></div><section class="surface-panel auth-panel"><h2>Log in</h2><p>Use your account email to continue.</p><form method="post" class="styled-form">{% csrf_token %}{{ form.as_p }}<input type="hidden" name="next" value="{{ next }}"><button class="button button-primary button-wide" type="submit">Log in</button></form><p class="auth-switch">No account? <a href="{% url 'accounts:register' %}">Create one</a></p></section></div>{% endblock %}
+{% block content %}<div class="auth-page"><div class="auth-intro"><span class="eyebrow">MINDVAULT WORKSPACE</span><h1>Welcome back.</h1><p>Return to your academic work and research materials.</p></div><section class="surface-panel auth-panel"><h2>Log in</h2><p>Use your account email to continue.</p><form method="post" class="styled-form">{% csrf_token %}{{ form.as_p }}<input type="hidden" name="next" value="{{ next }}"><button class="button button-primary button-wide" type="submit">Log in</button></form><p class="auth-switch">No account? <a href="{% url 'accounts:register' %}">Create one</a></p>
+<div class="auth-divider" role="separator"><span>Other sign-in options</span></div>
+<ul class="provider-list">
+<li><a class="button button-secondary button-wide provider-link" href="{% url 'accounts:coming_soon' 'google' %}">Sign in with Google <span class="provider-badge">Coming soon</span></a></li>
+<li><a class="button button-secondary button-wide provider-link" href="{% url 'accounts:coming_soon' 'apple' %}">Sign in with Apple <span class="provider-badge">Coming soon</span></a></li>
+<li><a class="button button-secondary button-wide provider-link" href="{% url 'accounts:coming_soon' 'school-email' %}">Sign in with School Email <span class="provider-badge">Coming soon</span></a></li>
+</ul></section></div>{% endblock %}

@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}Cookie Policy | MindVault{% endblock %}
+{% block page_label %}Cookie Policy{% endblock %}
+{% block content %}<div class="workspace-page policy-page">
+<header class="page-heading"><div><span class="eyebrow">LEGAL</span><h1>Cookie Policy</h1><p>Last updated: {{ last_updated }}.</p></div></header>
+<article class="surface-panel policy-content">
+
+<p class="policy-note">This page lists the cookies and browser storage MindVault actually uses today. It will be updated if that changes. Questions: <span class="placeholder">[privacy contact email]</span>. See also the <a href="{% url 'core:privacy' %}">Privacy Policy</a>.</p>
+
+<h2>1. What cookies are</h2>
+<p>Cookies are small text files that a website asks your browser to store. They let a site remember things between page loads, such as the fact that you are signed in.</p>
+
+<h2>2. Cookies MindVault uses</h2>
+<p>MindVault uses only three cookies, all set by its web framework (Django) to keep the site working and secure. All three are essential, which is why MindVault does not show a cookie consent banner: there are no optional cookies to accept or refuse.</p>
+<div class="policy-table-wrap"><table class="policy-table">
+<thead><tr><th scope="col">Cookie</th><th scope="col">Purpose</th><th scope="col">Lifetime</th><th scope="col">Details</th></tr></thead>
+<tbody>
+<tr><td><code>{{ session_cookie }}</code></td><td>Keeps you signed in. It holds a random identifier that matches a session stored in MindVault's database; it does not contain your password or personal details. It is set when you sign in.</td><td>Up to {{ session_days }} days, or until you log out.</td><td>{% if session_httponly %}Not readable by page scripts (HttpOnly). {% endif %}SameSite: {{ samesite }}. {% if secure_cookies %}Sent over HTTPS only.{% else %}Sent over HTTPS only in the production configuration; in local development it is not marked secure.{% endif %}</td></tr>
+<tr><td><code>{{ csrf_cookie }}</code></td><td>Security: protects forms (sign-in, registration, uploads, sharing) against cross-site request forgery, where another website tries to make your browser submit a request. It is set on pages that contain a form, including before you sign in.</td><td>Up to {{ csrf_days }} days.</td><td>{% if csrf_httponly %}Not readable by page scripts (HttpOnly). {% else %}Readable by page scripts (Django's default). {% endif %}SameSite: {{ samesite }}. {% if secure_cookies %}Sent over HTTPS only.{% else %}Sent over HTTPS only in the production configuration.{% endif %}</td></tr>
+<tr><td><code>{{ messages_cookie }}</code></td><td>Carries a short confirmation or error message (for example "Semester created") from one page to the next so it can be shown once. It is removed as soon as the message has been displayed.</td><td>Browser session only (deleted when you close the browser, and as soon as the message is shown).</td><td>{% if session_httponly %}Not readable by page scripts (HttpOnly). {% endif %}SameSite: {{ samesite }}. {% if secure_cookies %}Sent over HTTPS only.{% else %}Sent over HTTPS only in the production configuration.{% endif %}</td></tr>
+</tbody></table></div>
+<p>The same cookies are used by the administration site that project staff use.</p>
+
+<h2>3. Browser storage that is not a cookie</h2>
+<p>MindVault also saves two display preferences in your browser's local storage. Local storage is separate from cookies, stays on your device, is not sent to MindVault's server and does not identify you. A value is only saved after you use the matching control.</p>
+<div class="policy-table-wrap"><table class="policy-table">
+<thead><tr><th scope="col">Key</th><th scope="col">Purpose</th><th scope="col">Values</th></tr></thead>
+<tbody>
+<tr><td><code>mindvault-theme</code></td><td>Remembers whether you chose light or dark mode.</td><td><code>light</code> or <code>dark</code></td></tr>
+<tr><td><code>mindvault-sidebar-collapsed</code></td><td>Remembers whether you collapsed the side navigation.</td><td><code>true</code> or <code>false</code></td></tr>
+</tbody></table></div>
+<p>These stay until you clear your browser's site data.</p>
+
+<h2>4. Analytics, advertising and third parties</h2>
+<ul>
+<li>MindVault uses no analytics, advertising or tracking cookies or scripts.</li>
+<li>MindVault sets no cookies on behalf of third parties.</li>
+<li>Pages load fonts from Google Fonts (fonts.googleapis.com and fonts.gstatic.com). That request sends your IP address and browser details to Google, as described in the Privacy Policy. Google's own policies cover what it does with that data.</li>
+<li>Google, Apple and school-email sign-in are "coming soon" placeholders and do not contact those services or set their cookies.</li>
+</ul>
+<p>If optional cookies or analytics are added in future, MindVault will ask for your consent before they are used and will update this page first.</p>
+
+<h2>5. Managing cookies and storage</h2>
+<ul>
+<li>Your browser's settings let you view, block and delete cookies and site data for MindVault.</li>
+<li>If you block or delete the essential cookies, you will be signed out and forms (including sign-in) will stop working, and confirmation messages may not appear.</li>
+<li>Clearing site data also resets the two display preferences above.</li>
+</ul>
+
+<h2>6. Changes and contact</h2>
+<p>We will update the "Last updated" date when this page changes. Contact: <span class="placeholder">[privacy contact email]</span>.</p>
+</article></div>{% endblock %}
