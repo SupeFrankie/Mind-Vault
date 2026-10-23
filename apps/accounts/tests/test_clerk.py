@@ -11,7 +11,7 @@ class ClerkAuthTests(TestCase):
     def test_sso_callback_renders_correctly(self):
         r = self.client.get(reverse("accounts:sso_callback"))
         self.assertEqual(r.status_code, 200)
-        self.assertContains(r, "Completing sign in...")
+        self.assertContains(r, "Connecting to MindVault...")
         self.assertContains(r, "clerk.browser.js")
 
     def test_clerk_login_requires_post(self):

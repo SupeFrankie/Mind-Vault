@@ -49,7 +49,7 @@ window.addEventListener('load', async function() {
           });
           const data = await res.json();
           if (data.status === 'success') {
-            window.location.href = data.redirect_url || nextUrl;
+            window.location.replace(data.redirect_url || nextUrl);
             return;
           }
         }

@@ -9,3 +9,5 @@ whitenoise>=6.7
 pypdf>=6.2,<7
 # Clerk Backend API SDK for authentication & session verification
 clerk-backend-api>=7.0.0
+# HTTP client for LLM API integration (OpenRouter / Gemini)
+requests>=2.31.0

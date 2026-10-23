@@ -36,12 +36,16 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    # Dependency direction: accounts <- core <- vault <- sharing
+    # Dependency direction: accounts <- core <- vault <- sharing <- study_assistant
     "apps.accounts",
     "apps.core",
     "apps.vault",
     "apps.sharing",
+    "apps.study_assistant",
 ]
+
+OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY", "")
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
