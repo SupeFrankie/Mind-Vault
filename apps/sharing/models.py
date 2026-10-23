@@ -97,3 +97,74 @@ class Comment(models.Model):
 
     def __str__(self):
         return f"Comment by {self.author} on {self.material}"
+
+
+class GroupCall(models.Model):
+    """A group call session; media stays peer-to-peer in participating browsers."""
+
+    group = models.ForeignKey(StudyGroup, on_delete=models.CASCADE, related_name="calls")
+    started_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL, related_name="group_calls_started"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    ended_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        indexes = [models.Index(fields=["group", "ended_at", "created_at"])]
+
+
+class GroupCallParticipant(models.Model):
+    call = models.ForeignKey(GroupCall, on_delete=models.CASCADE, related_name="participants")
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="group_call_participations"
+    )
+    joined_at = models.DateTimeField(auto_now_add=True)
+    last_seen_at = models.DateTimeField()
+    left_at = models.DateTimeField(null=True, blank=True)
+    audio_muted = models.BooleanField(default=False)
+    video_enabled = models.BooleanField(default=False)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["call", "user"], name="uniq_group_call_user")]
+        indexes = [models.Index(fields=["call", "left_at", "last_seen_at"])]
+
+
+class GroupCallSignal(models.Model):
+    class Kind(models.TextChoices):
+        OFFER = "offer", "Offer"
+        ANSWER = "answer", "Answer"
+        CANDIDATE = "candidate", "ICE candidate"
+
+    call = models.ForeignKey(GroupCall, on_delete=models.CASCADE, related_name="signals")
+    sender = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="group_call_signals_sent"
+    )
+    recipient = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="group_call_signals_received"
+    )
+    kind = models.CharField(max_length=10, choices=Kind.choices)
+    payload = models.JSONField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        indexes = [models.Index(fields=["call", "recipient", "id"])]
+
+
+class GroupMessage(models.Model):
+    group = models.ForeignKey(StudyGroup, on_delete=models.CASCADE, related_name="chat_messages")
+    sender = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="group_chat_messages"
+    )
+    body = models.CharField(max_length=2000)
+    client_id = models.CharField(max_length=36)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ["created_at", "pk"]
+        constraints = [models.UniqueConstraint(
+            fields=["group", "sender", "client_id"], name="uniq_group_message_sender_client"
+        )]
+        indexes = [models.Index(fields=["group", "created_at", "id"])]
+
+    def __str__(self):
+        return f"{self.sender} in {self.group}: {self.body[:60]}"

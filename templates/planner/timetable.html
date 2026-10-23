@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}Timetable | MindVault{% endblock %}
+{% block page_label %}Timetable{% endblock %}
+{% block content %}
+<div class="workspace-page planner-page">
+  <header class="page-heading planner-heading">
+    <div><h1>Timetable</h1><p>Classes, focused study, deadlines, and time for yourself.</p></div>
+    <a href="{% url 'planner:entry_create' %}" class="button button-primary">Add entry</a>
+  </header>
+
+  <div class="planner-toolbar">
+    <div class="planner-week-controls" aria-label="Week navigation">
+      <a href="{{ previous_week_url }}" class="button button-secondary" aria-label="Previous week">←</a>
+      <a href="{{ today_url }}" class="button button-secondary">Today</a>
+      <a href="{{ next_week_url }}" class="button button-secondary" aria-label="Next week">→</a>
+      <h2 id="planner-week-label">{{ week|date:"j M" }} – {{ week_end|date:"j M Y" }}</h2>
+    </div>
+    <form method="get" class="planner-filters" aria-label="Filter timetable by type">
+      <input type="hidden" name="week" value="{{ week|date:'Y-m-d' }}">
+      {% for value,label in entry_types %}
+      <label class="planner-filter-label"><input type="checkbox" name="type" value="{{ value }}" {% if value in selected_types %}checked{% endif %}> <span>{{ label }}</span></label>
+      {% endfor %}
+      <button class="button button-secondary button-small" type="submit">Apply filters</button>
+      {% if selected_types %}<a class="planner-clear-filter" href="?week={{ week|date:'Y-m-d' }}">Clear</a>{% endif %}
+    </form>
+  </div>
+
+  <nav class="planner-day-picker" aria-label="Choose a day">
+    {% for day in days %}
+    <a href="?week={{ week|date:'Y-m-d' }}&day={{ day.date|date:'Y-m-d' }}{% for value in selected_types %}&type={{ value }}{% endfor %}" class="{% if day.date == selected_day %}is-selected{% endif %}"{% if day.date == selected_day %} aria-current="date"{% endif %}>
+      <span>{{ day.date|date:"D" }}</span><strong>{{ day.date|date:"j" }}</strong>
+    </a>
+    {% endfor %}
+  </nav>
+
+  <section class="planner-week-view" aria-label="Weekly timetable calendar">
+    <div class="planner-calendar-header" aria-labelledby="planner-week-label">
+      <div class="planner-time-heading">Time</div>
+      {% for day in days %}<div class="planner-day-heading{% if day.date == planner_today %} is-today{% endif %}{% if day.date|date:'w' == '0' or day.date|date:'w' == '6' %} is-weekend{% endif %}"{% if day.date == planner_today %} aria-current="date"{% endif %}><span>{{ day.date|date:"D" }}</span><strong>{{ day.date|date:"j M" }}</strong>{% if day.date == planner_today %}<span class="planner-today-marker">Today</span>{% endif %}</div>{% endfor %}
+    </div>
+    <div class="planner-calendar-body">
+      <div class="planner-time-axis" aria-hidden="true">{% for hour in hour_labels %}<span class="planner-hour-label">{{ hour|stringformat:"02d" }}:00</span>{% endfor %}</div>
+      {% for day in days %}
+      <div class="planner-day-column{% if day.date == selected_day %} is-selected-day{% endif %}" aria-label="{{ day.date|date:'l, j F' }}">
+        <div class="planner-all-day-row" aria-label="All-day entries">
+          {% for entry in day.all_day_entries %}<a class="planner-event planner-event-all-day type-{{ entry.entry_type }}" href="{% url 'planner:entry_detail' entry.pk %}"><span>{{ entry.get_entry_type_display }}</span><strong>{{ entry.title }}</strong></a>{% endfor %}
+        </div>
+        <div class="planner-timeline">
+          {% for item in day.positioned %}
+          <a class="planner-event planner-event-positioned type-{{ item.entry.entry_type }}{% if item.entry.agenda_focus_state %} is-{{ item.entry.agenda_focus_state }}{% endif %}" href="{% url 'planner:entry_detail' item.entry.pk %}" style="top:{{ item.top }}px;height:{{ item.height }}px;left:calc({{ item.lane_left }}% + 3px);width:calc({{ item.lane_width }}% - 6px);right:auto" title="{{ item.entry.title }} · {{ item.start_label }}–{{ item.entry.end_time|time:'g:i A' }}" aria-label="{{ day.date|date:'l, j F Y' }}: {{ item.entry.get_entry_type_display }}, {{ item.entry.title }}, {{ item.start_label }} to {{ item.entry.end_time|time:'g:i A' }}">
+            {% if item.entry.agenda_focus_state %}<span class="planner-focus-marker">{% if item.entry.agenda_focus_state == 'current' %}Now{% else %}Next{% endif %}</span>{% endif %}
+            <span>{{ item.entry.get_entry_type_display }} · {{ item.start_label }}</span><strong>{{ item.entry.title }}</strong>
+          </a>
+          {% endfor %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="planner-mobile-agenda" aria-labelledby="selected-day-heading">
+    {% for day in days %}{% if day.date == selected_day %}
+    <h2 id="selected-day-heading">{{ day.date|date:"l, j F" }}</h2>
+    {% if selected_day_focus %}<a class="planner-agenda-focus type-{{ selected_day_focus.entry_type }} is-{{ selected_day_focus_state }}" href="#planner-agenda-event-{{ selected_day_focus.pk }}">
+      <span class="planner-agenda-focus-label">{% if selected_day_focus_state == 'current' %}Happening now{% else %}Next up{% endif %}</span>
+      <strong>{{ selected_day_focus.title }}</strong>
+      <time>{{ selected_day_focus.start_time|time:"g:i A" }}–{{ selected_day_focus.end_time|time:"g:i A" }}</time>
+      {% if selected_day_focus.course or selected_day_focus.location %}<span class="planner-agenda-focus-details">{% if selected_day_focus.course %}{{ selected_day_focus.course.title }}{% endif %}{% if selected_day_focus.course and selected_day_focus.location %} · {% endif %}{% if selected_day_focus.location %}{{ selected_day_focus.location }}{% endif %}</span>{% endif %}
+      <span class="planner-agenda-focus-hint">Jump to event</span>
+    </a>{% endif %}
+    {% if day.entries %}<div class="planner-agenda-list">
+      {% for entry in day.entries %}<a{% if selected_day_focus and entry.pk == selected_day_focus.pk %} id="planner-agenda-event-{{ entry.pk }}"{% endif %} class="planner-agenda-entry type-{{ entry.entry_type }}{% if entry.agenda_focus_state %} is-{{ entry.agenda_focus_state }}{% endif %}" href="{% url 'planner:entry_detail' entry.pk %}">
+        <span class="planner-type-label">{{ entry.get_entry_type_display }}</span><strong>{{ entry.title }}</strong>
+        <time>{% if entry.all_day %}All day{% else %}{{ entry.start_time|time:"g:i A" }} – {{ entry.end_time|time:"g:i A" }}{% endif %}</time>
+        {% if entry.course %}<span>{{ entry.course.title }}</span>{% endif %}{% if entry.location %}<span>{{ entry.location }}</span>{% endif %}
+      </a>{% endfor %}
+    </div>{% else %}<p class="planner-empty-day">Nothing planned for this day.</p>{% endif %}
+    {% endif %}{% endfor %}
+  </section>
+
+  {% if not days.0.entries and not days.1.entries and not days.2.entries and not days.3.entries and not days.4.entries and not days.5.entries and not days.6.entries %}
+  <div class="planner-empty-week"><h2>A clear week</h2><p>Add a class, study session, deadline, or personal event to begin planning.</p><a href="{% url 'planner:entry_create' %}" class="button button-secondary">Add your first entry</a></div>
+  {% endif %}
+</div>
+{% endblock %}

@@ -36,7 +36,9 @@ INSTALLED_APPS = [
     "apps.accounts",
     "apps.core",
     "apps.vault",
+    "apps.planner",
     "apps.sharing",
+    "channels",
 ]
 
 MIDDLEWARE = [
@@ -52,6 +54,17 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = "config.urls"
 WSGI_APPLICATION = "config.wsgi.application"
+ASGI_APPLICATION = "config.asgi.application"
+
+REDIS_URL = os.environ.get("REDIS_URL", "").strip()
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {"hosts": [REDIS_URL]},
+    }
+} if REDIS_URL else {
+    "default": {"BACKEND": "channels.layers.InMemoryChannelLayer"}
+}
 
 TEMPLATES = [
     {

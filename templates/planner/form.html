@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}{{ title }} | MindVault{% endblock %}
+{% block page_label %}Timetable{% endblock %}
+{% block content %}
+<div class="workspace-page form-page planner-form-page">
+  <header class="page-heading"><div><h1>{{ title }}</h1><p>Plan the time you need, with room to adjust when schedules overlap.</p></div></header>
+  {% if conflicts %}<section class="planner-conflict-panel" aria-labelledby="conflict-heading" role="alert">
+    <h2 id="conflict-heading">This time overlaps another entry</h2><p>You can change the time or confirm that you want to keep both.</p>
+    <ul>{% for conflict in conflicts %}<li><strong>{{ conflict.title }}</strong> · {{ conflict.get_entry_type_display }}{% if conflict.all_day %} · all day{% else %} · {{ conflict.start_time|time:'g:i A' }}–{{ conflict.end_time|time:'g:i A' }}{% endif %}</li>{% endfor %}</ul>
+    <label class="planner-confirm-conflict"><input type="checkbox" name="confirm_overlap" form="planner-entry-form"> Keep both entries</label>
+  </section>{% endif %}
+  <section class="surface-panel form-panel">
+    <form method="post" id="planner-entry-form" class="styled-form planner-entry-form">
+      {% csrf_token %}{{ form.as_p }}
+      <div class="form-actions"><button class="button button-primary" type="submit">{{ submit }}</button>{% if cancel_pk %}<a class="button button-secondary" href="{% url 'planner:entry_detail' cancel_pk %}">Cancel</a>{% else %}<a class="button button-secondary" href="{% url 'planner:timetable' %}">Cancel</a>{% endif %}</div>
+    </form>
+  </section>
+</div>
+<script>
+(() => {
+  const form = document.querySelector(".planner-entry-form");
+  if (!form) return;
+  const type = form.querySelector("[data-entry-type]");
+  const repeat = form.querySelector("[data-repeat-toggle]");
+  const day = form.querySelector("[data-weekday-field]");
+  const allDay = form.querySelector("[data-all-day-toggle]");
+  const course = form.querySelector("[data-course-field]");
+  const times = [...form.querySelectorAll("[data-time-field]")];
+  const toggle = () => {
+    const repeated = type.value === "class" && repeat.checked;
+    repeat.closest("p").hidden = type.value !== "class";
+    day.closest("p").hidden = !repeated;
+    form.querySelector("[name=event_date]").closest("p").hidden = repeated;
+    allDay.closest("p").hidden = type.value !== "assignment" || repeated;
+    times.forEach((field) => { field.closest("p").hidden = allDay.checked && type.value === "assignment"; });
+    course.closest("p").hidden = type.value === "personal";
+  };
+  type.addEventListener("change", () => {
+    if (type.value !== "class") repeat.checked = false;
+    if (type.value !== "assignment") allDay.checked = false;
+    toggle();
+  });
+  [repeat, allDay].forEach((field) => field.addEventListener("change", toggle));
+  toggle();
+})();
+</script>
+{% endblock %}

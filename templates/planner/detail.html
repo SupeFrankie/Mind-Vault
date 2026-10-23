@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}{{ entry.title }} | Timetable | MindVault{% endblock %}
+{% block page_label %}Timetable entry{% endblock %}
+{% block content %}
+<div class="workspace-page planner-detail-page">
+  <nav class="page-breadcrumb" aria-label="Breadcrumb"><a href="{% url 'planner:timetable' %}">Timetable</a><span aria-hidden="true">/</span><span>{{ entry.title }}</span></nav>
+  <header class="page-heading planner-detail-heading"><div><span class="planner-type-label type-{{ entry.entry_type }}">{{ entry.get_entry_type_display }}</span><h1>{{ entry.title }}</h1><p>{% if entry.weekday != None %}Every {{ entry.get_weekday_display }}{% else %}{{ entry.event_date|date:"l, j F Y" }}{% endif %}{% if entry.all_day %} · All day{% else %} · {{ entry.start_time|time:"g:i A" }}–{{ entry.end_time|time:"g:i A" }}{% endif %}</p></div>
+    <div class="page-actions"><a class="button button-secondary" href="{% url 'planner:entry_edit' entry.pk %}">Edit</a><a class="button button-danger" href="{% url 'planner:entry_delete' entry.pk %}">Delete</a></div></header>
+  <section class="surface-panel planner-detail-panel"><dl class="metadata-list">
+    {% if entry.course %}<div><dt>Course</dt><dd>{{ entry.course.title }}{% if entry.course.code %} ({{ entry.course.code }}){% endif %}</dd></div>{% endif %}
+    {% if entry.location %}<div><dt>Location</dt><dd>{{ entry.location }}</dd></div>{% endif %}
+    {% if entry.notes %}<div><dt>Notes</dt><dd class="planner-notes">{{ entry.notes|linebreaksbr }}</dd></div>{% endif %}
+    <div><dt>Schedule</dt><dd>{% if entry.weekday != None %}Repeats weekly. Editing or deleting changes the full series.{% elif entry.all_day %}All-day entry.{% else %}One-time entry.{% endif %}</dd></div>
+  </dl></section>
+</div>
+{% endblock %}
