@@ -221,3 +221,32 @@ class StudyAssistantAPITests(TestCase):
         self.assertIn("Doc 1", titles)
         self.assertIn("Doc 2", titles)
         self.assertNotIn("Bob Doc", titles)
+
+    def test_dashboard_page_renders_for_logged_in_user(self):
+        self.client.force_login(self.user)
+        r = self.client.get(reverse("study_assistant:dashboard"))
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, "AI Study Assistant")
+        self.assertContains(r, "Personal AI Study Guide")
+        self.assertContains(r, "Group Study Resources")
+
+    def test_toggle_task_completion(self):
+        doc = StudyDocument.objects.create(user=self.user, title="Task Doc", raw_text="Sample")
+        gr = GroupStudyResource.objects.create(document=doc, revision_summary="Summary")
+        task = GroupSessionTask.objects.create(resource=gr, title="Review Chapter 1", is_completed=False)
+
+        self.client.force_login(self.user)
+        url = reverse("study_assistant:toggle_task", kwargs={"task_id": task.id})
+        r = self.client.post(url)
+        self.assertEqual(r.status_code, 200)
+        self.assertTrue(r.json()["is_completed"])
+        task.refresh_from_db()
+        self.assertTrue(task.is_completed)
+
+        # Toggle back
+        r = self.client.post(url)
+        self.assertEqual(r.status_code, 200)
+        self.assertFalse(r.json()["is_completed"])
+        task.refresh_from_db()
+        self.assertFalse(task.is_completed)
+

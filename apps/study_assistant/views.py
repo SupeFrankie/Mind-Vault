@@ -3,15 +3,38 @@ import json
 import logging
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
+from django.db import models
 from django.http import JsonResponse, HttpResponseBadRequest, HttpResponseForbidden, Http404
+from django.shortcuts import render
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_POST, require_http_methods
 
 from apps.sharing.models import StudyGroup
-from .models import StudyDocument
+from .models import StudyDocument, GroupSessionTask
 from .services import LLMServiceError, process_study_document
 
 logger = logging.getLogger(__name__)
+
+
+@login_required
+def study_assistant_page(request):
+    """Render the AI Study Assistant interactive dashboard."""
+    # Retrieve user's accessible study groups
+    user_groups = StudyGroup.objects.filter(
+        models.Q(owner=request.user) | models.Q(memberships__user=request.user)
+    ).distinct()
+
+    # Retrieve recent documents for the user
+    recent_documents = StudyDocument.objects.filter(user=request.user).order_by("-created_at")[:10]
+
+    return render(
+        request,
+        "study_assistant/dashboard.html",
+        {
+            "groups": user_groups,
+            "recent_documents": recent_documents,
+        },
+    )
 
 
 def serialize_document_output(document: StudyDocument) -> dict:
@@ -211,3 +234,26 @@ def study_document_list_view(request):
         for doc in documents
     ]
     return JsonResponse({"documents": data})
+
+
+@require_POST
+def toggle_task_completion_view(request, task_id):
+    """Toggle completion status of a GroupSessionTask."""
+    if not request.user.is_authenticated:
+        return JsonResponse({"error": "Authentication required."}, status=401)
+
+    try:
+        task = GroupSessionTask.objects.select_related("resource__document").get(pk=task_id)
+    except GroupSessionTask.DoesNotExist:
+        return JsonResponse({"error": "Task not found."}, status=404)
+
+    doc = task.resource.document
+    # Permission check: owner or member of group
+    if doc.user != request.user:
+        if not doc.group or not doc.group.memberships.filter(user=request.user).exists():
+            return JsonResponse({"error": "Permission denied."}, status=403)
+
+    task.is_completed = not task.is_completed
+    task.save(update_fields=["is_completed"])
+    return JsonResponse({"success": True, "task_id": task.id, "is_completed": task.is_completed})
+
