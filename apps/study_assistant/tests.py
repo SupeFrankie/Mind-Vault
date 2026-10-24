@@ -8,6 +8,7 @@ from django.test import TestCase
 from django.urls import reverse
 
 from apps.sharing.models import StudyGroup, Membership
+from apps.vault.models import Semester, Course, Unit, Material
 from .models import (
     Flashcard,
     GeneratedNote,
@@ -15,6 +16,7 @@ from .models import (
     GroupStudyResource,
     QuizQuestion,
     StudyDocument,
+    StudyChatMessage,
 )
 from .services import (
     LLMServiceError,
@@ -227,8 +229,8 @@ class StudyAssistantAPITests(TestCase):
         r = self.client.get(reverse("study_assistant:dashboard"))
         self.assertEqual(r.status_code, 200)
         self.assertContains(r, "AI Study Assistant")
-        self.assertContains(r, "Personal AI Study Guide")
-        self.assertContains(r, "Group Study Resources")
+        self.assertContains(r, "Personal Study Guide")
+        self.assertContains(r, "Chat with Material")
 
     def test_toggle_task_completion(self):
         doc = StudyDocument.objects.create(user=self.user, title="Task Doc", raw_text="Sample")
@@ -249,4 +251,76 @@ class StudyAssistantAPITests(TestCase):
         self.assertFalse(r.json()["is_completed"])
         task.refresh_from_db()
         self.assertFalse(task.is_completed)
+
+    @patch("apps.study_assistant.services.call_llm_api")
+    def test_generate_endpoint_with_stored_material(self, mock_llm):
+        mock_llm.return_value = MOCK_LLM_RESPONSE
+
+        semester = Semester.objects.create(owner=self.user, name="Fall 2026")
+        course = Course.objects.create(semester=semester, code="CS201", title="Data Structures")
+        unit = Unit.objects.create(course=course, title="Trees")
+        material = Material.objects.create(
+            owner=self.user,
+            unit=unit,
+            title="Binary Search Trees",
+            notes="A BST is a rooted binary tree whose internal nodes each store a key.",
+        )
+
+        self.client.force_login(self.user)
+        r = self.client.post(
+            reverse("study_assistant:generate"),
+            data=json.dumps({"material_id": material.id}),
+            content_type="application/json",
+        )
+        self.assertEqual(r.status_code, 201)
+        data = r.json()
+        self.assertEqual(data["document"]["material_id"], material.id)
+        self.assertEqual(data["document"]["title"], "Binary Search Trees")
+        doc = StudyDocument.objects.get(pk=data["document"]["id"])
+        self.assertEqual(doc.material, material)
+        self.assertIn("BST", doc.extracted_text)
+
+    @patch("apps.study_assistant.views.call_llm_chat")
+    def test_chat_endpoint_with_material(self, mock_chat):
+        mock_chat.return_value = "A BST maintains left <= root <= right order."
+
+        semester = Semester.objects.create(owner=self.user, name="Fall 2026")
+        course = Course.objects.create(semester=semester, code="CS201", title="Data Structures")
+        unit = Unit.objects.create(course=course, title="Trees")
+        material = Material.objects.create(
+            owner=self.user,
+            unit=unit,
+            title="Binary Search Trees",
+            notes="BST notes for testing chat.",
+        )
+
+        self.client.force_login(self.user)
+        r = self.client.post(
+            reverse("study_assistant:chat"),
+            data=json.dumps({
+                "material_id": material.id,
+                "message": "What is the ordering property?",
+            }),
+            content_type="application/json",
+        )
+        self.assertEqual(r.status_code, 200)
+        data = r.json()
+        self.assertTrue(data["success"])
+        self.assertEqual(data["reply"], "A BST maintains left <= root <= right order.")
+
+        # Check messages stored in db
+        doc = StudyDocument.objects.get(pk=data["document_id"])
+        messages = doc.chat_messages.all()
+        self.assertEqual(messages.count(), 2)
+        self.assertEqual(messages[0].role, "user")
+        self.assertEqual(messages[0].content, "What is the ordering property?")
+        self.assertEqual(messages[1].role, "assistant")
+        self.assertEqual(messages[1].content, "A BST maintains left <= root <= right order.")
+
+        # Test get_chat_history
+        hist_url = reverse("study_assistant:chat_history", kwargs={"document_id": doc.id})
+        r_hist = self.client.get(hist_url)
+        self.assertEqual(r_hist.status_code, 200)
+        self.assertEqual(len(r_hist.json()["messages"]), 2)
+
 

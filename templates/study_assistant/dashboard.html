@@ -4,15 +4,12 @@
 
 {% block content %}
 <div class="workspace-page study-assistant-dashboard">
-  <!-- Page Header -->
+  <!-- Page Header (No brand pill) -->
   <header class="page-heading">
     <div>
       <span class="eyebrow">INTELLIGENT STUDY HUB</span>
-      <h1 class="flex items-center gap-2">
-        <span>AI Study Assistant</span>
-        <span class="ai-badge">Gemini AI</span>
-      </h1>
-      <p>Transform your course documents and notes into structured revision guides, flashcards, interactive quizzes, and group action plans.</p>
+      <h1>AI Study Assistant</h1>
+      <p>Interact directly with an AI assistant grounded on your stored vault materials, or generate structured study guides, 3D flashcards, quizzes, and group action plans.</p>
     </div>
   </header>
 
@@ -21,61 +18,41 @@
     <div class="flex items-start gap-3">
       <span class="alert-icon" aria-hidden="true">⚠</span>
       <div class="flex-1">
-        <strong class="font-semibold block" id="errorTitle">Generation Error</strong>
+        <strong class="font-semibold block" id="errorTitle">Notice</strong>
         <p id="errorMessage" class="text-sm mt-0.5"></p>
       </div>
       <button type="button" id="dismissErrorBtn" class="close-btn" aria-label="Dismiss error">×</button>
     </div>
   </div>
 
-  <!-- Top Ingestion Grid: Upload & Past Sessions -->
+  <!-- Top Ingestion Grid: Select Stored Material or External / Past Sessions -->
   <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
     
-    <!-- Upload / Input Widget (2 columns) -->
-    <div class="lg:col-span-2 surface-panel p-6 rounded-xl border border-[var(--border)]">
-      <div class="section-heading mb-4">
-        <div>
-          <h2 class="text-lg font-bold text-[var(--text-primary)]">Upload Study Material</h2>
-          <p class="text-sm text-[var(--text-secondary)]">Provide course slides, syllabus, PDF textbook chapters, or paste lecture notes.</p>
-        </div>
-      </div>
-
-      <form id="studyGenerateForm" class="space-y-4">
-        {% csrf_token %}
-
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <!-- Document Title -->
+    <!-- Ingestion Widget (2 columns) -->
+    <div class="lg:col-span-2 surface-panel p-6 rounded-xl border border-[var(--border)] flex flex-col justify-between">
+      <div>
+        <div class="section-heading mb-4">
           <div>
-            <label for="docTitle" class="form-label">Document Title</label>
-            <input
-              type="text"
-              id="docTitle"
-              name="title"
-              class="form-input"
-              placeholder="e.g., CS301 Distributed Systems - Week 4"
-            />
-          </div>
-
-          <!-- Study Group Association -->
-          <div>
-            <label for="groupSelect" class="form-label">Associate with Study Group (Optional)</label>
-            <select id="groupSelect" name="group_id" class="form-input">
-              <option value="">-- Personal (No Group) --</option>
-              {% for g in groups %}
-              <option value="{{ g.id }}">{{ g.name }}</option>
-              {% endfor %}
-            </select>
+            <h2 class="text-lg font-bold text-[var(--text-primary)]">Select Study Source</h2>
+            <p class="text-sm text-[var(--text-secondary)]">Choose from your stored Vault materials, or optionally upload external notes.</p>
           </div>
         </div>
 
-        <!-- Input Mode Switcher (File vs Text) -->
-        <div class="flex items-center gap-2 border-b border-[var(--border)] pb-2 pt-2">
+        <!-- Input Mode Switcher (Material Library is primary default!) -->
+        <div class="flex items-center gap-2 border-b border-[var(--border)] pb-2 mb-4">
+          <button
+            type="button"
+            id="modeMaterialBtn"
+            class="mode-pill active"
+          >
+            <span>📚 My Material Library</span>
+          </button>
           <button
             type="button"
             id="modeFileBtn"
-            class="mode-pill active"
+            class="mode-pill"
           >
-            <span>📁 Upload File (PDF / TXT)</span>
+            <span>📁 Upload File</span>
           </button>
           <button
             type="button"
@@ -86,76 +63,163 @@
           </button>
         </div>
 
-        <!-- File Upload Area -->
-        <div id="fileUploadContainer">
-          <div
-            id="dropZone"
-            class="drop-zone"
-            tabindex="0"
-            role="button"
-            aria-label="Upload document file"
-          >
-            <input
-              type="file"
-              id="fileInput"
-              name="file"
-              accept=".pdf,.txt,.md"
-              class="hidden"
-            />
-            <div class="drop-zone-content">
-              <div class="drop-icon">📄</div>
-              <p class="drop-text font-medium">
-                <span class="text-[var(--brand-primary)] underline">Click to browse</span> or drag and drop your document
-              </p>
-              <p class="drop-subtext">Supports PDF, TXT, Markdown (up to 20MB)</p>
+        <form id="studyGenerateForm" class="space-y-4">
+          {% csrf_token %}
+
+          <!-- Hidden Input for selected material -->
+          <input type="hidden" id="selectedMaterialInput" name="material_id" value="{{ selected_material_id|default:'' }}" />
+
+          <!-- Mode 1: Material Library Dropdown Picker -->
+          <div id="materialPickerContainer" class="space-y-3">
+            <label for="materialSelect" class="form-label">Choose Material from Vault</label>
+            {% if materials %}
+            <select id="materialSelect" class="form-input">
+              <option value="">-- Choose a stored material --</option>
+              {% for m in materials %}
+              <option
+                value="{{ m.id }}"
+                data-title="{{ m.title }}"
+                data-kind="{{ m.get_kind_display }}"
+                data-course="{{ m.unit.course }}"
+                data-unit="{{ m.unit.title }}"
+                data-has-file="{{ m.has_file }}"
+                data-file-size="{{ m.file_size|filesizeformat }}"
+                data-notes="{{ m.notes|truncatewords:20 }}"
+                {% if selected_material_id and selected_material_id == m.id|stringformat:"s" %}selected{% endif %}
+              >
+                {{ m.title }} ({{ m.get_kind_display }}) · {{ m.unit.course }}
+              </option>
+              {% endfor %}
+            </select>
+
+            <!-- Material Details Card Preview -->
+            <div id="materialPreviewCard" class="hidden p-4 rounded-xl border border-[var(--brand-primary)] bg-[var(--surface-muted)] flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div>
+                <div class="flex items-center gap-2">
+                  <span class="text-xs px-2 py-0.5 rounded font-bold uppercase bg-[var(--surface)] text-[var(--brand-forest)] border border-[var(--border)]" id="previewKind"></span>
+                  <h3 class="font-bold text-base text-[var(--text-primary)]" id="previewTitle"></h3>
+                </div>
+                <p class="text-xs text-[var(--text-secondary)] mt-1" id="previewCourseUnit"></p>
+                <div class="text-xs text-[var(--text-secondary)] mt-1 flex items-center gap-3">
+                  <span id="previewFileStatus"></span>
+                  <span id="previewNotesSnippet"></span>
+                </div>
+              </div>
+
+              <!-- Action buttons for selected material -->
+              <div class="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  id="directChatBtn"
+                  class="button button-primary px-4 py-2 font-semibold text-xs"
+                >
+                  <span>💬 Chat with this Material</span>
+                </button>
+              </div>
             </div>
-            <!-- File selected badge -->
-            <div id="fileSelectedDisplay" class="file-selected-badge hidden">
-              <span class="file-name font-medium" id="selectedFileName"></span>
-              <span class="file-size text-xs text-[var(--text-secondary)]" id="selectedFileSize"></span>
-              <button type="button" id="removeFileBtn" class="remove-file-btn" title="Remove file">×</button>
+            {% else %}
+            <div class="p-4 rounded-lg bg-[var(--surface-muted)] text-sm text-[var(--text-secondary)]">
+              <p>You have not uploaded any materials to your Vault yet.</p>
+              <a href="{% url 'vault:material_create' %}" class="underline text-[var(--brand-primary)] font-medium mt-1 inline-block">+ Add material to Vault</a>
+            </div>
+            {% endif %}
+          </div>
+
+          <!-- Mode 2: File Upload Drop Zone (hidden by default) -->
+          <div id="fileUploadContainer" class="hidden space-y-3">
+            <div
+              id="dropZone"
+              class="drop-zone"
+              tabindex="0"
+              role="button"
+              aria-label="Upload document file"
+            >
+              <input
+                type="file"
+                id="fileInput"
+                name="file"
+                accept=".pdf,.txt,.md"
+                class="hidden"
+              />
+              <div class="drop-zone-content">
+                <div class="drop-icon">📄</div>
+                <p class="drop-text font-medium">
+                  <span class="text-[var(--brand-primary)] underline">Click to browse</span> or drag and drop external document
+                </p>
+                <p class="drop-subtext">Supports PDF, TXT, Markdown (up to 20MB)</p>
+              </div>
+              <div id="fileSelectedDisplay" class="file-selected-badge hidden">
+                <span class="file-name font-medium" id="selectedFileName"></span>
+                <span class="file-size text-xs text-[var(--text-secondary)]" id="selectedFileSize"></span>
+                <button type="button" id="removeFileBtn" class="remove-file-btn" title="Remove file">×</button>
+              </div>
             </div>
           </div>
-        </div>
 
-        <!-- Raw Text Input Area (initially hidden) -->
-        <div id="rawTextInputContainer" class="hidden">
-          <label for="rawText" class="form-label sr-only">Paste Study Notes</label>
-          <textarea
-            id="rawText"
-            name="text"
-            rows="6"
-            class="form-input font-mono text-sm"
-            placeholder="Paste raw lecture transcripts, textbook excerpts, or revision summaries here..."
-          ></textarea>
-        </div>
-
-        <!-- Submit Button -->
-        <div class="pt-2 flex items-center justify-between">
-          <div class="text-xs text-[var(--text-secondary)] flex items-center gap-1.5">
-            <span class="inline-block w-2 h-2 rounded-full bg-emerald-500"></span>
-            <span>Generates personal study guide & group synthesis simultaneously</span>
+          <!-- Mode 3: Raw Text Input (hidden by default) -->
+          <div id="rawTextInputContainer" class="hidden">
+            <label for="rawText" class="form-label sr-only">Paste Study Notes</label>
+            <textarea
+              id="rawText"
+              name="text"
+              rows="6"
+              class="form-input font-mono text-sm"
+              placeholder="Paste raw lecture transcripts, textbook excerpts, or revision summaries here..."
+            ></textarea>
           </div>
-          <button
-            type="submit"
-            id="submitGenerateBtn"
-            class="button button-primary flex items-center gap-2 px-5 py-2.5 font-semibold"
-          >
-            <span id="btnIcon">✦</span>
-            <span id="btnText">Generate Study Guide</span>
-          </button>
-        </div>
-      </form>
+
+          <!-- Common Meta Row: Title & Optional Study Group -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+            <div>
+              <label for="docTitle" class="form-label">Session / Guide Title (Optional)</label>
+              <input
+                type="text"
+                id="docTitle"
+                name="title"
+                class="form-input"
+                placeholder="Auto-filled from material or file"
+              />
+            </div>
+            <div>
+              <label for="groupSelect" class="form-label">Associate with Study Group (Optional)</label>
+              <select id="groupSelect" name="group_id" class="form-input">
+                <option value="">-- Personal (No Group) --</option>
+                {% for g in groups %}
+                <option value="{{ g.id }}">{{ g.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+
+          <!-- Submit Action Row -->
+          <div class="pt-3 flex flex-wrap items-center justify-between gap-3 border-t border-[var(--border)]">
+            <div class="text-xs text-[var(--text-secondary)] flex items-center gap-1.5">
+              <span class="inline-block w-2 h-2 rounded-full bg-emerald-500"></span>
+              <span>Grounded on your stored academic work</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <button
+                type="submit"
+                id="submitGenerateBtn"
+                class="button button-primary flex items-center gap-2 px-5 py-2.5 font-semibold"
+              >
+                <span id="btnIcon">✦</span>
+                <span id="btnText">Generate Full Study Pack</span>
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
     </div>
 
-    <!-- Recent Documents / History (1 column) -->
+    <!-- Recent Sessions / Vault Documents (1 column) -->
     <div class="surface-panel p-6 rounded-xl border border-[var(--border)] flex flex-col">
       <div class="section-heading mb-3">
-        <h2 class="text-lg font-bold text-[var(--text-primary)]">Recent Sessions</h2>
-        <p class="text-sm text-[var(--text-secondary)]">Click to view previously generated guides.</p>
+        <h2 class="text-lg font-bold text-[var(--text-primary)]">Active Study Sessions</h2>
+        <p class="text-sm text-[var(--text-secondary)]">Revisit past generated study guides or chats.</p>
       </div>
 
-      <div id="recentDocsList" class="flex-1 overflow-y-auto space-y-2 max-h-[340px] pr-1">
+      <div id="recentDocsList" class="flex-1 overflow-y-auto space-y-2 max-h-[380px] pr-1">
         {% if recent_documents %}
           {% for doc in recent_documents %}
           <button
@@ -169,7 +233,9 @@
             </div>
             <div class="text-[11px] text-[var(--text-secondary)] mt-1 flex items-center justify-between">
               <span>{{ doc.created_at|date:"M d, Y" }}</span>
-              {% if doc.group %}
+              {% if doc.material %}
+              <span class="truncate max-w-[120px] text-[var(--brand-primary)]">📚 {{ doc.material.title }}</span>
+              {% elif doc.group %}
               <span class="truncate max-w-[120px] text-[var(--brand-primary)]">👥 {{ doc.group.name }}</span>
               {% endif %}
             </div>
@@ -177,8 +243,8 @@
           {% endfor %}
         {% else %}
           <div id="noRecentDocs" class="empty-state py-8 text-center text-sm text-[var(--text-secondary)]">
-            <p>No study documents yet.</p>
-            <p class="text-xs mt-1">Upload a document to get started!</p>
+            <p>No active study sessions yet.</p>
+            <p class="text-xs mt-1">Select a material from your library above to begin!</p>
           </div>
         {% endif %}
       </div>
@@ -188,13 +254,13 @@
   <!-- Loading Indicator Overlay -->
   <div id="generationLoadingState" class="hidden surface-panel p-8 rounded-xl border border-[var(--border)] text-center my-6">
     <div class="spinner mx-auto mb-4"></div>
-    <h3 class="text-lg font-bold text-[var(--text-primary)] mb-1">Analyzing Ingested Study Content</h3>
-    <p class="text-sm text-[var(--text-secondary)] max-w-md mx-auto">
-      Parsing document structure, extracting core concepts, formulating flashcards, questions, and detecting material conflicts...
+    <h3 class="text-lg font-bold text-[var(--text-primary)] mb-1" id="loadingTitle">Analyzing Ingested Study Content</h3>
+    <p class="text-sm text-[var(--text-secondary)] max-w-md mx-auto" id="loadingSubtitle">
+      Extracting concepts from your material, building summaries, formulating flashcards and quiz questions...
     </p>
   </div>
 
-  <!-- Main Output Section (Shown when a document is generated or loaded) -->
+  <!-- Main Active Study Workspace (Shown when material or document is active) -->
   <div id="resultsSection" class="hidden space-y-6">
 
     <!-- Active Document Title Bar -->
@@ -202,9 +268,10 @@
       <div>
         <div class="flex items-center gap-2">
           <h2 id="activeDocTitle" class="text-xl font-bold text-[var(--text-primary)]">Document Title</h2>
+          <span id="activeDocMaterial" class="hidden text-xs px-2.5 py-0.5 rounded-full bg-[var(--surface-muted)] text-[var(--brand-forest)] font-semibold border border-[var(--border)]"></span>
           <span id="activeDocGroup" class="hidden text-xs px-2.5 py-0.5 rounded-full bg-[var(--brand-pale)] text-[var(--brand-forest)] font-medium"></span>
         </div>
-        <p id="activeDocDate" class="text-xs text-[var(--text-secondary)] mt-0.5">Generated just now</p>
+        <p id="activeDocDate" class="text-xs text-[var(--text-secondary)] mt-0.5">Active session</p>
       </div>
 
       <!-- Action Buttons -->
@@ -215,16 +282,27 @@
       </div>
     </div>
 
-    <!-- Main Tabbed Navigation Toggle -->
-    <div class="main-tabs-nav flex border-b border-[var(--border)]">
+    <!-- Main Navigation Tabs: 1. Chat with Material, 2. Personal Guide, 3. Group Resources -->
+    <div class="main-tabs-nav flex flex-wrap border-b border-[var(--border)]">
+      <button
+        type="button"
+        id="tabBtnChat"
+        class="tab-nav-btn active"
+        data-target="chatTabContent"
+      >
+        <span class="tab-icon">💬</span>
+        <span class="tab-title">Chat with Material</span>
+        <span class="tab-pill">Interactive Q&A</span>
+      </button>
+
       <button
         type="button"
         id="tabBtnPersonal"
-        class="tab-nav-btn active"
+        class="tab-nav-btn"
         data-target="personalTabContent"
       >
         <span class="tab-icon">✦</span>
-        <span class="tab-title">Personal AI Study Guide</span>
+        <span class="tab-title">Personal Study Guide</span>
         <span class="tab-pill">Notes · Flashcards · Quiz</span>
       </button>
 
@@ -235,15 +313,85 @@
         data-target="groupTabContent"
       >
         <span class="tab-icon">👥</span>
-        <span class="tab-title">Group Study Resources</span>
+        <span class="tab-title">Group Resources</span>
         <span class="tab-pill">Conflicts · Queries · Tasks</span>
       </button>
     </div>
 
     <!-- ========================================================================= -->
-    <!-- TAB 1: PERSONAL AI STUDY GUIDE -->
+    <!-- TAB 1: INTERACTIVE AI CHAT GROUNDED ON MATERIAL -->
     <!-- ========================================================================= -->
-    <div id="personalTabContent" class="tab-panel space-y-8">
+    <div id="chatTabContent" class="tab-panel space-y-4">
+      <div class="surface-panel p-5 rounded-xl border border-[var(--border)] flex flex-col h-[580px]">
+        
+        <!-- Chat Header -->
+        <div class="flex items-center justify-between pb-3 border-b border-[var(--border)]">
+          <div class="flex items-center gap-2">
+            <span class="text-base">💬</span>
+            <div>
+              <h3 class="font-bold text-sm text-[var(--text-primary)]">Interactive AI Study Assistant</h3>
+              <p class="text-xs text-[var(--text-secondary)]">Ask anything about your stored coursework. The assistant uses your material content.</p>
+            </div>
+          </div>
+          <span class="text-xs px-2.5 py-1 rounded-full bg-[var(--brand-pale)] text-[var(--brand-forest)] font-semibold" id="chatGroundedPill">
+            Grounded on Material
+          </span>
+        </div>
+
+        <!-- Chat Message Thread -->
+        <div id="chatMessagesThread" class="flex-1 overflow-y-auto p-4 space-y-3.5 my-2">
+          <!-- Initial Welcome Message -->
+          <div class="flex items-start gap-3">
+            <div class="w-8 h-8 rounded-full bg-[var(--brand-forest)] text-white flex items-center justify-center font-bold text-xs shrink-0">
+              AI
+            </div>
+            <div class="p-3.5 rounded-2xl rounded-tl-none bg-[var(--surface-muted)] text-[var(--text-primary)] text-sm max-w-[85%] leading-relaxed border border-[var(--border)]">
+              <p>Hello! I am your study assistant grounded directly on this material. You can ask me to explain confusing concepts, summarize sections, test you with practice problems, or find key themes.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick Prompt Chips -->
+        <div class="flex items-center gap-2 py-2 overflow-x-auto no-scrollbar border-t border-[var(--border)] text-xs">
+          <span class="text-[var(--text-secondary)] shrink-0 font-medium">Quick asks:</span>
+          <button type="button" class="quick-chip" data-prompt="Explain the key concepts of this material in simple terms with everyday examples.">
+            💡 Explain simply
+          </button>
+          <button type="button" class="quick-chip" data-prompt="Summarize the core takeaways of this material into 3 concise bullet points.">
+            📝 3-bullet summary
+          </button>
+          <button type="button" class="quick-chip" data-prompt="Give me a challenging practice question based on this material to test my understanding.">
+            🎯 Test my knowledge
+          </button>
+          <button type="button" class="quick-chip" data-prompt="What are the most common exam traps or easily confused details in this topic?">
+            🔍 Exam tips & traps
+          </button>
+        </div>
+
+        <!-- Chat Input Form -->
+        <form id="chatInputForm" class="flex items-center gap-2 pt-2 border-t border-[var(--border)]">
+          <input
+            type="text"
+            id="chatMessageInput"
+            class="form-input flex-1 text-sm py-2.5"
+            placeholder="Type your question about this material (e.g. 'Can you explain the main theorem?')..."
+            autocomplete="off"
+          />
+          <button
+            type="submit"
+            id="chatSendBtn"
+            class="button button-primary px-4 py-2.5 text-sm font-semibold shrink-0"
+          >
+            <span>Send</span>
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- TAB 2: PERSONAL STUDY GUIDE (Notes, Explanations, Flashcards, Quiz) -->
+    <!-- ========================================================================= -->
+    <div id="personalTabContent" class="tab-panel hidden space-y-8">
 
       <!-- 1. Notes & Explanations Layout -->
       <section class="space-y-6">
@@ -283,7 +431,7 @@
           </div>
         </div>
 
-        <!-- Structured Notes Accordion / Card List -->
+        <!-- Structured Notes Card List -->
         <div class="surface-panel p-5 rounded-xl border border-[var(--border)]">
           <div class="flex items-center justify-between pb-3 border-b border-[var(--border)] mb-4">
             <h4 class="font-bold text-sm tracking-wide uppercase text-[var(--brand-primary)]">
@@ -400,7 +548,6 @@
             </h3>
             <p class="text-sm text-[var(--text-secondary)]">Test your comprehension with multiple-choice questions and instant feedback.</p>
           </div>
-          <!-- Quiz Score Pill -->
           <div id="quizScoreContainer" class="flex items-center gap-3">
             <span id="quizScoreBadge" class="text-sm font-bold px-3 py-1.5 rounded-lg bg-[var(--surface-muted)] text-[var(--brand-forest)]">
               Score: <span id="quizScoreCount">0</span> / <span id="quizTotalCount">0</span>
@@ -411,7 +558,6 @@
           </div>
         </div>
 
-        <!-- Quiz Questions List Container -->
         <div id="quizQuestionsContainer" class="space-y-5">
           <!-- Quiz items injected by JS -->
         </div>
@@ -419,7 +565,7 @@
     </div>
 
     <!-- ========================================================================= -->
-    <!-- TAB 2: GROUP STUDY RESOURCES -->
+    <!-- TAB 3: GROUP STUDY RESOURCES -->
     <!-- ========================================================================= -->
     <div id="groupTabContent" class="tab-panel hidden space-y-8">
 
@@ -512,17 +658,6 @@
     padding-bottom: 3rem;
   }
 
-  .ai-badge {
-    font-size: 11px;
-    font-weight: 700;
-    padding: 3px 8px;
-    border-radius: 9999px;
-    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-    color: #ffffff;
-    letter-spacing: 0.5px;
-    text-transform: uppercase;
-  }
-
   /* Form Elements */
   .form-label {
     display: block;
@@ -551,13 +686,13 @@
 
   /* Mode switch pills */
   .mode-pill {
-    padding: 6px 12px;
+    padding: 7px 14px;
     font-size: 13px;
     font-weight: 600;
-    border-radius: 6px;
+    border-radius: 8px;
     background: transparent;
     color: var(--text-secondary);
-    border: none;
+    border: 1px solid transparent;
     cursor: pointer;
     transition: all 150ms ease;
   }
@@ -570,13 +705,15 @@
   .mode-pill.active {
     background: var(--surface-muted);
     color: var(--brand-forest);
+    border-color: var(--border);
+    font-weight: 700;
   }
 
   /* Drop Zone */
   .drop-zone {
     border: 2px dashed var(--border);
     border-radius: 12px;
-    padding: 28px 20px;
+    padding: 24px 20px;
     text-align: center;
     cursor: pointer;
     background: var(--brand-background);
@@ -590,8 +727,8 @@
   }
 
   .drop-icon {
-    font-size: 32px;
-    margin-bottom: 8px;
+    font-size: 28px;
+    margin-bottom: 6px;
   }
 
   .drop-text {
@@ -697,6 +834,49 @@
     border-radius: 9999px;
     background: var(--surface-muted);
     color: var(--text-secondary);
+  }
+
+  /* Quick chips */
+  .quick-chip {
+    padding: 5px 10px;
+    border-radius: 9999px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 140ms ease;
+  }
+
+  .quick-chip:hover {
+    border-color: var(--brand-primary);
+    background: var(--surface-muted);
+  }
+
+  /* Chat Bubbles */
+  .chat-msg-user {
+    align-self: flex-end;
+    background: var(--brand-forest);
+    color: #ffffff;
+    border-radius: 18px 18px 4px 18px;
+    padding: 10px 14px;
+    max-width: 80%;
+    margin-left: auto;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  .chat-msg-assistant {
+    align-self: flex-start;
+    background: var(--surface-muted);
+    color: var(--text-primary);
+    border-radius: 18px 18px 18px 4px;
+    padding: 12px 16px;
+    max-width: 85%;
+    margin-right: auto;
+    font-size: 14px;
+    line-height: 1.6;
+    border: 1px solid var(--border);
   }
 
   /* Flashcard 3D perspective flip */
@@ -841,25 +1021,40 @@
     let activeFlashcardIndex = 0;
     let flashcardsList = [];
     let isFlipped = false;
-    let quizUserAnswers = {}; // { questionId: selectedIndex }
-    let quizSubmitted = {}; // { questionId: boolean }
+    let quizUserAnswers = {};
+    let quizSubmitted = {};
+    let activeDocumentId = null;
+    let activeMaterialId = null;
 
-    // DOM Elements
+    // DOM Elements - Form & Mode
     const form = document.getElementById("studyGenerateForm");
+    const modeMaterialBtn = document.getElementById("modeMaterialBtn");
+    const modeFileBtn = document.getElementById("modeFileBtn");
+    const modeTextBtn = document.getElementById("modeTextBtn");
+
+    const materialPickerContainer = document.getElementById("materialPickerContainer");
+    const materialSelect = document.getElementById("materialSelect");
+    const materialPreviewCard = document.getElementById("materialPreviewCard");
+    const previewTitle = document.getElementById("previewTitle");
+    const previewKind = document.getElementById("previewKind");
+    const previewCourseUnit = document.getElementById("previewCourseUnit");
+    const previewFileStatus = document.getElementById("previewFileStatus");
+    const previewNotesSnippet = document.getElementById("previewNotesSnippet");
+    const directChatBtn = document.getElementById("directChatBtn");
+    const selectedMaterialInput = document.getElementById("selectedMaterialInput");
+
+    const fileUploadContainer = document.getElementById("fileUploadContainer");
     const fileInput = document.getElementById("fileInput");
     const dropZone = document.getElementById("dropZone");
     const fileSelectedDisplay = document.getElementById("fileSelectedDisplay");
     const selectedFileName = document.getElementById("selectedFileName");
     const selectedFileSize = document.getElementById("selectedFileSize");
     const removeFileBtn = document.getElementById("removeFileBtn");
+
+    const rawTextInputContainer = document.getElementById("rawTextInputContainer");
     const rawText = document.getElementById("rawText");
     const docTitle = document.getElementById("docTitle");
     const groupSelect = document.getElementById("groupSelect");
-
-    const modeFileBtn = document.getElementById("modeFileBtn");
-    const modeTextBtn = document.getElementById("modeTextBtn");
-    const fileUploadContainer = document.getElementById("fileUploadContainer");
-    const rawTextInputContainer = document.getElementById("rawTextInputContainer");
 
     const submitBtn = document.getElementById("submitGenerateBtn");
     const btnIcon = document.getElementById("btnIcon");
@@ -871,12 +1066,24 @@
     const dismissErrorBtn = document.getElementById("dismissErrorBtn");
 
     const loadingState = document.getElementById("generationLoadingState");
+    const loadingTitle = document.getElementById("loadingTitle");
+    const loadingSubtitle = document.getElementById("loadingSubtitle");
     const resultsSection = document.getElementById("resultsSection");
 
+    // Tab Navigation
+    const tabBtnChat = document.getElementById("tabBtnChat");
     const tabBtnPersonal = document.getElementById("tabBtnPersonal");
     const tabBtnGroup = document.getElementById("tabBtnGroup");
+    const chatTabContent = document.getElementById("chatTabContent");
     const personalTabContent = document.getElementById("personalTabContent");
     const groupTabContent = document.getElementById("groupTabContent");
+
+    // Chat Elements
+    const chatMessagesThread = document.getElementById("chatMessagesThread");
+    const chatInputForm = document.getElementById("chatInputForm");
+    const chatMessageInput = document.getElementById("chatMessageInput");
+    const chatSendBtn = document.getElementById("chatSendBtn");
+    const chatGroundedPill = document.getElementById("chatGroundedPill");
 
     // Flashcard Elements
     const activeFlashcard = document.getElementById("activeFlashcard");
@@ -897,7 +1104,6 @@
       return match ? match[1] : "";
     }
 
-    // Helper: Format bytes
     function formatBytes(bytes) {
       if (bytes === 0) return "0 Bytes";
       const k = 1024;
@@ -906,53 +1112,146 @@
       return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
     }
 
-    // Mode Switching (File vs Raw Text)
-    modeFileBtn.addEventListener("click", () => {
-      modeFileBtn.classList.add("active");
-      modeTextBtn.classList.remove("active");
-      fileUploadContainer.classList.remove("hidden");
-      rawTextInputContainer.classList.add("hidden");
-    });
-
-    modeTextBtn.addEventListener("click", () => {
-      modeTextBtn.classList.add("active");
-      modeFileBtn.classList.remove("active");
-      rawTextInputContainer.classList.remove("hidden");
+    // Mode Switching
+    function setMode(mode) {
+      [modeMaterialBtn, modeFileBtn, modeTextBtn].forEach(b => b.classList.remove("active"));
+      materialPickerContainer.classList.add("hidden");
       fileUploadContainer.classList.add("hidden");
-    });
+      rawTextInputContainer.classList.add("hidden");
+
+      if (mode === "material") {
+        modeMaterialBtn.classList.add("active");
+        materialPickerContainer.classList.remove("hidden");
+      } else if (mode === "file") {
+        modeFileBtn.classList.add("active");
+        fileUploadContainer.classList.remove("hidden");
+      } else if (mode === "text") {
+        modeTextBtn.classList.add("active");
+        rawTextInputContainer.classList.remove("hidden");
+      }
+    }
+
+    modeMaterialBtn.addEventListener("click", () => setMode("material"));
+    modeFileBtn.addEventListener("click", () => setMode("file"));
+    modeTextBtn.addEventListener("click", () => setMode("text"));
+
+    // Material Library Selection Logic
+    if (materialSelect) {
+      materialSelect.addEventListener("change", function () {
+        handleMaterialSelection(this.value);
+      });
+
+      // If initial value is present (e.g. from ?material_id=...)
+      if (materialSelect.value) {
+        handleMaterialSelection(materialSelect.value);
+      }
+    }
+
+    function handleMaterialSelection(matId) {
+      if (!matId) {
+        materialPreviewCard.classList.add("hidden");
+        selectedMaterialInput.value = "";
+        activeMaterialId = null;
+        return;
+      }
+
+      const opt = materialSelect.querySelector(`option[value="${matId}"]`);
+      if (!opt) return;
+
+      selectedMaterialInput.value = matId;
+      activeMaterialId = matId;
+
+      previewTitle.textContent = opt.dataset.title;
+      previewKind.textContent = opt.dataset.kind;
+      previewCourseUnit.textContent = `${opt.dataset.course} · ${opt.dataset.unit}`;
+      previewFileStatus.textContent = opt.dataset.hasFile === "True" ? `📄 File attached (${opt.dataset.fileSize})` : "📝 Text notes only";
+      previewNotesSnippet.textContent = opt.dataset.notes ? `· "${opt.dataset.notes}"` : "";
+
+      if (!docTitle.value.trim()) {
+        docTitle.value = opt.dataset.title;
+      }
+
+      materialPreviewCard.classList.remove("hidden");
+    }
+
+    // "Chat with this Material" Direct Action Button
+    if (directChatBtn) {
+      directChatBtn.addEventListener("click", function () {
+        const matId = selectedMaterialInput.value;
+        if (!matId) {
+          showError("Please select a material first.", "Material Required");
+          return;
+        }
+        initiateChatWithMaterial(matId, previewTitle.textContent);
+      });
+    }
+
+    function initiateChatWithMaterial(matId, title) {
+      activeMaterialId = matId;
+      activeDocumentId = null;
+
+      // Setup UI
+      document.getElementById("activeDocTitle").textContent = title || "Material Study";
+      const matBadge = document.getElementById("activeDocMaterial");
+      matBadge.textContent = `📚 ${title}`;
+      matBadge.classList.remove("hidden");
+      document.getElementById("activeDocGroup").classList.add("hidden");
+      document.getElementById("activeDocDate").textContent = "Live AI Chat Session";
+
+      chatGroundedPill.textContent = `Grounded on: ${title}`;
+
+      // Reset thread with clean greeting
+      chatMessagesThread.innerHTML = `
+        <div class="flex items-start gap-3">
+          <div class="w-8 h-8 rounded-full bg-[var(--brand-forest)] text-white flex items-center justify-center font-bold text-xs shrink-0">
+            AI
+          </div>
+          <div class="p-3.5 rounded-2xl rounded-tl-none bg-[var(--surface-muted)] text-[var(--text-primary)] text-sm max-w-[85%] leading-relaxed border border-[var(--border)]">
+            <p>I'm ready! I've loaded <strong>${escapeHtml(title)}</strong> from your vault. What would you like to explore or clarify?</p>
+          </div>
+        </div>
+      `;
+
+      // Activate Chat Tab
+      activateTab("chatTabContent");
+      resultsSection.classList.remove("hidden");
+      resultsSection.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
 
     // File Drag & Drop Handling
-    dropZone.addEventListener("click", () => fileInput.click());
+    if (dropZone) {
+      dropZone.addEventListener("click", () => fileInput.click());
 
-    fileInput.addEventListener("change", () => {
-      if (fileInput.files.length > 0) {
-        handleFileSelection(fileInput.files[0]);
-      }
-    });
-
-    ["dragenter", "dragover"].forEach((eventName) => {
-      dropZone.addEventListener(eventName, (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        dropZone.classList.add("dragover");
+      fileInput.addEventListener("change", () => {
+        if (fileInput.files.length > 0) {
+          handleFileSelection(fileInput.files[0]);
+        }
       });
-    });
 
-    ["dragleave", "drop"].forEach((eventName) => {
-      dropZone.addEventListener(eventName, (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        dropZone.classList.remove("dragover");
+      ["dragenter", "dragover"].forEach((eventName) => {
+        dropZone.addEventListener(eventName, (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          dropZone.classList.add("dragover");
+        });
       });
-    });
 
-    dropZone.addEventListener("drop", (e) => {
-      const dt = e.dataTransfer;
-      if (dt.files && dt.files.length > 0) {
-        fileInput.files = dt.files;
-        handleFileSelection(dt.files[0]);
-      }
-    });
+      ["dragleave", "drop"].forEach((eventName) => {
+        dropZone.addEventListener(eventName, (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          dropZone.classList.remove("dragover");
+        });
+      });
+
+      dropZone.addEventListener("drop", (e) => {
+        const dt = e.dataTransfer;
+        if (dt.files && dt.files.length > 0) {
+          fileInput.files = dt.files;
+          handleFileSelection(dt.files[0]);
+        }
+      });
+    }
 
     function handleFileSelection(file) {
       selectedFileName.textContent = file.name;
@@ -964,14 +1263,16 @@
       }
     }
 
-    removeFileBtn.addEventListener("click", (e) => {
-      e.stopPropagation();
-      fileInput.value = "";
-      fileSelectedDisplay.classList.add("hidden");
-    });
+    if (removeFileBtn) {
+      removeFileBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        fileInput.value = "";
+        fileSelectedDisplay.classList.add("hidden");
+      });
+    }
 
     // Error Alert Functions
-    function showError(msg, title = "Generation Error") {
+    function showError(msg, title = "Notice") {
       errorTitle.textContent = title;
       errorMessage.textContent = msg;
       errorAlert.classList.remove("hidden");
@@ -985,50 +1286,48 @@
     dismissErrorBtn.addEventListener("click", hideError);
 
     // Tab Switching
-    tabBtnPersonal.addEventListener("click", () => {
-      tabBtnPersonal.classList.add("active");
-      tabBtnGroup.classList.remove("active");
-      personalTabContent.classList.remove("hidden");
-      groupTabContent.classList.add("hidden");
-    });
+    function activateTab(targetId) {
+      [tabBtnChat, tabBtnPersonal, tabBtnGroup].forEach(b => b.classList.remove("active"));
+      [chatTabContent, personalTabContent, groupTabContent].forEach(p => p.classList.add("hidden"));
 
-    tabBtnGroup.addEventListener("click", () => {
-      tabBtnGroup.classList.add("active");
-      tabBtnPersonal.classList.remove("active");
-      groupTabContent.classList.remove("hidden");
-      personalTabContent.classList.add("hidden");
-    });
+      if (targetId === "chatTabContent") {
+        tabBtnChat.classList.add("active");
+        chatTabContent.classList.remove("hidden");
+      } else if (targetId === "personalTabContent") {
+        tabBtnPersonal.classList.add("active");
+        personalTabContent.classList.remove("hidden");
+      } else if (targetId === "groupTabContent") {
+        tabBtnGroup.classList.add("active");
+        groupTabContent.classList.remove("hidden");
+      }
+    }
 
-    // Form Submit (Generate Content via API)
+    tabBtnChat.addEventListener("click", () => activateTab("chatTabContent"));
+    tabBtnPersonal.addEventListener("click", () => activateTab("personalTabContent"));
+    tabBtnGroup.addEventListener("click", () => activateTab("groupTabContent"));
+
+    // Form Submit (Generate Full Study Pack)
     form.addEventListener("submit", async function (e) {
       e.preventDefault();
       hideError();
 
+      const matId = selectedMaterialInput.value;
       const hasFile = fileInput.files && fileInput.files.length > 0;
       const textVal = rawText.value.trim();
 
-      if (!hasFile && !textVal) {
-        showError("Please select a study document (PDF/TXT) or paste notes into the text box.", "Input Required");
+      if (!matId && !hasFile && !textVal) {
+        showError("Please select a stored material from your Vault, upload a file, or paste raw text.", "Input Required");
         return;
       }
 
-      // Prepare FormData
       const formData = new FormData();
-      if (hasFile) {
-        formData.append("file", fileInput.files[0]);
-      }
-      if (textVal) {
-        formData.append("text", textVal);
-      }
-      if (docTitle.value.trim()) {
-        formData.append("title", docTitle.value.trim());
-      }
-      if (groupSelect.value) {
-        formData.append("group_id", groupSelect.value);
-      }
+      if (matId) formData.append("material_id", matId);
+      if (hasFile) formData.append("file", fileInput.files[0]);
+      if (textVal) formData.append("text", textVal);
+      if (docTitle.value.trim()) formData.append("title", docTitle.value.trim());
+      if (groupSelect.value) formData.append("group_id", groupSelect.value);
 
-      // UI Loading State
-      setLoading(true);
+      setLoading(true, "Analyzing Study Material", "Extracting core concepts, formulating 3D flashcards, quizzes, and detecting conflicts...");
 
       try {
         const response = await fetch("{% url 'study_assistant:generate' %}", {
@@ -1045,9 +1344,10 @@
           throw new Error(data.error || "Failed to process study material.");
         }
 
-        // Successfully generated
         renderStudyDocument(data);
         appendRecentDocumentPill(data.document);
+        // Switch to personal guide tab upon generation
+        activateTab("personalTabContent");
       } catch (err) {
         showError(err.message || "An unexpected error occurred while generating study materials.");
       } finally {
@@ -1055,28 +1355,136 @@
       }
     });
 
-    function setLoading(isLoading) {
+    function setLoading(isLoading, title = "", subtitle = "") {
       if (isLoading) {
         submitBtn.disabled = true;
         btnIcon.textContent = "⏳";
         btnText.textContent = "Analyzing & Generating...";
+        loadingTitle.textContent = title || "Analyzing Study Material";
+        loadingSubtitle.textContent = subtitle || "Processing with AI...";
         loadingState.classList.remove("hidden");
         resultsSection.classList.add("hidden");
       } else {
         submitBtn.disabled = false;
         btnIcon.textContent = "✦";
-        btnText.textContent = "Generate Study Guide";
+        btnText.textContent = "Generate Full Study Pack";
         loadingState.classList.add("hidden");
       }
     }
 
-    // Render Study Document Payload
+    // ==========================================
+    // Interactive Chat Implementation
+    // ==========================================
+    chatInputForm.addEventListener("submit", async function (e) {
+      e.preventDefault();
+      const msg = chatMessageInput.value.trim();
+      if (!msg) return;
+
+      sendChatMessage(msg);
+    });
+
+    // Quick Prompt Chips
+    document.querySelectorAll(".quick-chip").forEach((btn) => {
+      btn.addEventListener("click", function () {
+        const prompt = this.dataset.prompt;
+        sendChatMessage(prompt);
+      });
+    });
+
+    async function sendChatMessage(userText) {
+      chatMessageInput.value = "";
+      appendMessageToThread("user", userText);
+
+      // Scroll thread
+      chatMessagesThread.scrollTop = chatMessagesThread.scrollHeight;
+
+      // Temporary typing indicator
+      const typingId = "typingIndicator_" + Date.now();
+      const typingElem = document.createElement("div");
+      typingElem.id = typingId;
+      typingElem.className = "flex items-start gap-3";
+      typingElem.innerHTML = `
+        <div class="w-8 h-8 rounded-full bg-[var(--brand-forest)] text-white flex items-center justify-center font-bold text-xs shrink-0">
+          AI
+        </div>
+        <div class="p-3 rounded-2xl bg-[var(--surface-muted)] text-[var(--text-secondary)] text-xs border border-[var(--border)] flex items-center gap-1.5">
+          <span class="inline-block w-1.5 h-1.5 rounded-full bg-[var(--brand-primary)] animate-pulse"></span>
+          <span>Thinking grounded on your material...</span>
+        </div>
+      `;
+      chatMessagesThread.appendChild(typingElem);
+      chatMessagesThread.scrollTop = chatMessagesThread.scrollHeight;
+
+      try {
+        const payload = {
+          message: userText,
+          document_id: activeDocumentId,
+          material_id: activeMaterialId,
+        };
+
+        const res = await fetch("{% url 'study_assistant:chat' %}", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": getCsrfToken(),
+          },
+          body: JSON.stringify(payload),
+        });
+
+        const data = await res.json();
+        const indicator = document.getElementById(typingId);
+        if (indicator) indicator.remove();
+
+        if (!res.ok) {
+          throw new Error(data.error || "Failed to get AI response.");
+        }
+
+        if (data.document_id) {
+          activeDocumentId = data.document_id;
+        }
+
+        appendMessageToThread("assistant", data.reply);
+      } catch (err) {
+        const indicator = document.getElementById(typingId);
+        if (indicator) indicator.remove();
+
+        appendMessageToThread("assistant", `⚠️ Error: ${err.message}`);
+      }
+
+      chatMessagesThread.scrollTop = chatMessagesThread.scrollHeight;
+    }
+
+    function appendMessageToThread(role, text) {
+      const msgDiv = document.createElement("div");
+      if (role === "user") {
+        msgDiv.className = "chat-msg-user";
+        msgDiv.textContent = text;
+      } else {
+        msgDiv.className = "flex items-start gap-3";
+        msgDiv.innerHTML = `
+          <div class="w-8 h-8 rounded-full bg-[var(--brand-forest)] text-white flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">
+            AI
+          </div>
+          <div class="chat-msg-assistant">
+            ${escapeHtml(text).replace(/\n/g, "<br>")}
+          </div>
+        `;
+      }
+      chatMessagesThread.appendChild(msgDiv);
+    }
+
+    // ==========================================
+    // Render Full Study Document Payload
+    // ==========================================
     function renderStudyDocument(data) {
       currentStudyData = data;
       quizUserAnswers = {};
       quizSubmitted = {};
 
       const doc = data.document;
+      activeDocumentId = doc.id;
+      activeMaterialId = doc.material_id;
+
       const personal = data.personal_study_guide || {};
       const group = data.group_study_resources || {};
 
@@ -1090,6 +1498,14 @@
         minute: "2-digit",
       })}`;
 
+      const matBadge = document.getElementById("activeDocMaterial");
+      if (doc.material) {
+        matBadge.textContent = `📚 ${doc.material.title}`;
+        matBadge.classList.remove("hidden");
+      } else {
+        matBadge.classList.add("hidden");
+      }
+
       const groupBadge = document.getElementById("activeDocGroup");
       if (doc.group_id) {
         const opt = groupSelect.querySelector(`option[value="${doc.group_id}"]`);
@@ -1097,6 +1513,14 @@
         groupBadge.classList.remove("hidden");
       } else {
         groupBadge.classList.add("hidden");
+      }
+
+      chatGroundedPill.textContent = `Grounded on: ${doc.title}`;
+
+      // Populate existing chat messages if any
+      if (data.chat_messages && data.chat_messages.length > 0) {
+        chatMessagesThread.innerHTML = "";
+        data.chat_messages.forEach((m) => appendMessageToThread(m.role, m.content));
       }
 
       // 1. Personal Tab: Summaries & Notes
@@ -1144,7 +1568,7 @@
       if (conflicts.length === 0) {
         conflictsContainer.innerHTML = `
           <div class="p-4 rounded-lg bg-[var(--surface-muted)] text-center text-xs text-[var(--text-secondary)]">
-            ✓ No contradictory material or conflicting claims detected in this source.
+            ✓ No contradictory material or conflicting claims detected.
           </div>
         `;
       } else {
@@ -1186,7 +1610,6 @@
       // 7. Group Tab: Next Session Tasks
       renderGroupTasks(group.next_session_tasks || []);
 
-      // Reveal results section & scroll
       resultsSection.classList.remove("hidden");
       resultsSection.scrollIntoView({ behavior: "smooth", block: "start" });
     }
@@ -1251,7 +1674,7 @@
       renderActiveFlashcard();
     });
 
-    // Keyboard navigation for Flashcards
+    // Keyboard navigation
     window.addEventListener("keydown", (e) => {
       if (resultsSection.classList.contains("hidden")) return;
       if (["input", "textarea"].includes(document.activeElement.tagName.toLowerCase())) return;
@@ -1322,13 +1745,11 @@
             ${optionsHtml}
           </div>
 
-          <!-- Explanation (initially hidden) -->
           <div id="quizExplanation_${q.id}" class="hidden p-3.5 rounded-lg bg-[var(--surface-muted)] border border-[var(--border)] text-xs text-[var(--text-primary)] mb-3">
             <strong class="block font-semibold mb-1 text-[var(--brand-forest)]">Explanation:</strong>
             <span>${escapeHtml(q.explanation || "No explanation provided.")}</span>
           </div>
 
-          <!-- Submit answer button -->
           <div class="flex items-center justify-end">
             <button
               type="button"
@@ -1345,11 +1766,10 @@
         container.appendChild(card);
       });
 
-      // Attach click listeners to quiz option buttons
       container.querySelectorAll(".quiz-option-btn").forEach((btn) => {
         btn.addEventListener("click", function () {
           const qid = this.dataset.qid;
-          if (quizSubmitted[qid]) return; // locked once submitted
+          if (quizSubmitted[qid]) return;
 
           const optIndex = parseInt(this.dataset.optIndex, 10);
           quizUserAnswers[qid] = {
@@ -1357,18 +1777,15 @@
             text: this.dataset.optText,
           };
 
-          // Deselect siblings
           const parent = document.getElementById(`quizOptionsContainer_${qid}`);
           parent.querySelectorAll(".quiz-option-btn").forEach((b) => b.classList.remove("selected"));
           this.classList.add("selected");
 
-          // Enable submit button
           const submitBtn = document.getElementById(`submitQuizBtn_${qid}`);
           if (submitBtn) submitBtn.disabled = false;
         });
       });
 
-      // Attach click listeners to quiz submit buttons
       container.querySelectorAll(".submit-quiz-btn").forEach((btn) => {
         btn.addEventListener("click", function () {
           const qid = parseInt(this.dataset.qid, 10);
@@ -1395,15 +1812,10 @@
       const statusPill = document.getElementById(`quizStatus_${qid}`);
       const explanationDiv = document.getElementById(`quizExplanation_${qid}`);
 
-      // Disable all option buttons and submit button
       submitBtn.disabled = true;
       submitBtn.classList.add("hidden");
 
-      // Determine match
       const correctText = (q.correct_answer || "").trim().toLowerCase();
-      const chosenText = (userChoice.text || "").trim().toLowerCase();
-
-      // Flexible matching: either direct string equality, starts-with key (e.g. "A)" matching option A), or normalized match
       let isCorrect = false;
 
       optionButtons.forEach((btn, idx) => {
@@ -1411,7 +1823,6 @@
         const btnText = (btn.dataset.optText || "").trim().toLowerCase();
         const letter = String.fromCharCode(65 + idx).toLowerCase();
 
-        // Check if this option is the correct one
         const isThisCorrect =
           btnText === correctText ||
           correctText.startsWith(letter + ")") ||
@@ -1429,7 +1840,6 @@
         }
       });
 
-      // Update status pill
       statusPill.classList.remove("hidden");
       if (isCorrect) {
         statusPill.textContent = "✓ Correct";
@@ -1439,12 +1849,7 @@
         statusPill.className = "quiz-status-pill text-xs px-2 py-0.5 rounded font-semibold bg-red-500/10 text-red-600";
       }
 
-      // Show explanation
-      if (explanationDiv) {
-        explanationDiv.classList.remove("hidden");
-      }
-
-      // Update score counter
+      if (explanationDiv) explanationDiv.classList.remove("hidden");
       updateQuizScore();
     }
 
@@ -1541,7 +1946,6 @@
 
       document.getElementById("tasksCompletedCount").textContent = completedCount;
 
-      // Checkbox toggle listener
       container.querySelectorAll('input[type="checkbox"]').forEach((checkbox) => {
         checkbox.addEventListener("change", async function () {
           const taskId = this.dataset.taskId;
@@ -1553,11 +1957,9 @@
             taskRow.classList.toggle("opacity-70", isChecked);
           }
 
-          // Recalculate count
           const checkedCount = container.querySelectorAll('input[type="checkbox"]:checked').length;
           document.getElementById("tasksCompletedCount").textContent = checkedCount;
 
-          // Call backend toggle API
           try {
             await fetch(`/study-assistant/api/tasks/${taskId}/toggle/`, {
               method: "POST",
@@ -1584,13 +1986,11 @@
 
     async function loadDocumentById(docId) {
       hideError();
-      setLoading(true);
+      setLoading(true, "Loading Study Session", "Fetching stored notes, flashcards, and conversation...");
 
       try {
         const res = await fetch(`/study-assistant/api/documents/${docId}/`);
-        if (!res.ok) {
-          throw new Error("Failed to load study document.");
-        }
+        if (!res.ok) throw new Error("Failed to load study document.");
         const data = await res.json();
         renderStudyDocument(data);
       } catch (err) {

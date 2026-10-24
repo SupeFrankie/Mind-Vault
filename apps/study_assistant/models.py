@@ -24,6 +24,14 @@ class StudyDocument(models.Model):
         related_name="study_documents",
         help_text="Optional study group association for group study resources.",
     )
+    material = models.ForeignKey(
+        "vault.Material",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="study_documents",
+        help_text="Associated stored material from user's vault.",
+    )
     title = models.CharField(max_length=255)
     document_file = models.FileField(
         upload_to="study_docs/%Y/%m/",
@@ -166,3 +174,27 @@ class GroupSessionTask(models.Model):
 
     def __str__(self):
         return f"Task: {self.title}"
+
+
+class StudyChatMessage(models.Model):
+    """Conversational interaction grounded on study material."""
+
+    class Role(models.TextChoices):
+        USER = "user", "User"
+        ASSISTANT = "assistant", "Assistant"
+
+    document = models.ForeignKey(
+        StudyDocument,
+        on_delete=models.CASCADE,
+        related_name="chat_messages",
+    )
+    role = models.CharField(max_length=15, choices=Role.choices, default=Role.USER)
+    content = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at"]
+
+    def __str__(self):
+        return f"{self.role}: {self.content[:30]}..."
+
