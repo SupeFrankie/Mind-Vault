@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.db import models
+from django.utils import timezone
 
 
 class AppendOnlyError(Exception):
@@ -65,3 +66,35 @@ class AuditEvent(models.Model):
 
     def __str__(self):
         return f"{self.created_at:%Y-%m-%d %H:%M} {self.action} [{self.outcome}]"
+
+
+class Notification(models.Model):
+    """User-facing inbox item; intentionally separate from immutable audit history."""
+
+    recipient = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="notifications"
+    )
+    message = models.CharField(max_length=255)
+    target_url = models.CharField(max_length=500)
+    dedupe_key = models.CharField(max_length=191)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    read_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-created_at", "-pk"]
+        constraints = [
+            models.UniqueConstraint(fields=["recipient", "dedupe_key"], name="uniq_notification_recipient_key"),
+        ]
+        indexes = [models.Index(fields=["recipient", "read_at", "-created_at"])]
+
+    @property
+    def is_read(self):
+        return self.read_at is not None
+
+    def mark_read(self):
+        if self.read_at is None:
+            self.read_at = timezone.now()
+            self.save(update_fields=["read_at"])
+
+    def __str__(self):
+        return f"Notification for {self.recipient_id}: {self.message}"

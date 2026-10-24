@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% load static tz %}
+{% block title %}Group chat · {{ group.name }} | MindVault{% endblock %}
+{% block page_label %}Study Group Chat{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'css/group-chat.css' %}" />{% endblock %}
+{% block content %}
+{% get_current_timezone as CHAT_TIME_ZONE %}
+<section class="workspace-page group-chat" id="groupChat"
+  data-group-id="{{ group.pk }}"
+  data-user-id="{{ request.user.pk }}"
+  data-socket-path="/ws/groups/{{ group.pk }}/chat/"
+  data-timezone="{{ CHAT_TIME_ZONE }}">
+  <nav class="page-breadcrumb" aria-label="Breadcrumb">
+    <a href="{% url 'sharing:group_list' %}">Study groups</a><span aria-hidden="true">/</span>
+    <a href="{% url 'sharing:group_detail' group.pk %}">{{ group.name }}</a><span aria-hidden="true">/</span>
+    <span aria-current="page">Chat</span>
+  </nav>
+  <header class="chat-header">
+    <div><p class="eyebrow">STUDY GROUP</p><h1>{{ group.name }} chat</h1>
+      <p>Messages are visible to current members of this group.</p></div>
+    <div class="chat-header-actions">
+      <a class="button button-secondary" href="{% url 'sharing:call_lobby' group.pk %}">Open group call</a>
+      <a class="button button-secondary" href="{% url 'sharing:group_detail' group.pk %}">Group details</a>
+    </div>
+  </header>
+  <section class="chat-panel" aria-label="Group conversation">
+    <div class="chat-panel-heading">
+      <h2>Conversation</h2>
+      <p id="chatConnection" role="status" aria-live="polite" data-state="connecting">Connecting…</p>
+    </div>
+    <div class="chat-history-controls"><button class="button button-secondary button-small" id="loadOlderMessages" type="button" hidden>Load older messages</button></div>
+    <ol class="chat-message-list" id="chatMessages" role="log" aria-live="polite" aria-relevant="additions text" aria-label="Group messages">
+      <li class="chat-empty" id="chatEmpty">Connecting to load recent messages…</li>
+    </ol>
+    <form class="chat-composer" id="chatForm">
+      {% csrf_token %}
+      <label class="chat-visually-hidden" for="chatInput">Message to {{ group.name }}</label>
+      <textarea id="chatInput" name="message" rows="2" maxlength="2000" required placeholder="Write a message… Use Ctrl+Enter to send" autocomplete="off"></textarea>
+      <div class="chat-composer-footer">
+        <span id="chatSendState" role="status" aria-live="polite">Messages send when connected.</span>
+        <div><span class="chat-character-count" id="chatCharacterCount">0 / 2000</span>
+          <button class="button button-primary" id="chatSend" type="submit" disabled>Send</button></div>
+      </div>
+    </form>
+  </section>
+</section>
+<script defer src="{% static 'js/group-chat.js' %}"></script>
+{% endblock %}

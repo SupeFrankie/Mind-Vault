@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Group call · {{ group.name }} | MindVault{% endblock %}
+{% block page_label %}Study Group Call{% endblock %}
+{% block content %}
+<section class="workspace-page call-lobby">
+  <nav class="page-breadcrumb" aria-label="Breadcrumb">
+    <a href="{% url 'sharing:group_list' %}">Study groups</a>
+    <span aria-hidden="true">/</span>
+    <a href="{% url 'sharing:group_detail' group.pk %}">{{ group.name }}</a>
+    <span aria-hidden="true">/</span><span aria-current="page">Call</span>
+  </nav>
+  <header class="page-heading">
+    <div><span class="eyebrow">STUDY TOGETHER</span><h1>{{ group.name }} call</h1>
+      <p>Talk through a problem, share ideas, and study together.</p></div>
+  </header>
+  <section class="surface-panel call-lobby-panel" aria-labelledby="call-lobby-heading">
+    {% if call %}
+      <p class="call-live-indicator"><span aria-hidden="true"></span> Call in progress</p>
+      <h2 id="call-lobby-heading">Join your group</h2>
+      <p>Connect your microphone and camera after joining. You can turn either off at any time.</p>
+      <a class="button button-primary" href="{% url 'sharing:call_room' call.pk %}">Join call</a>
+    {% else %}
+      <p class="call-live-indicator call-live-indicator-idle">No active call</p>
+      <h2 id="call-lobby-heading">Start a group call</h2>
+      <p>Starting a call opens a private room for members of {{ group.name }}.</p>
+      <form method="post" action="{% url 'sharing:call_start' group.pk %}" data-call-start>
+        {% csrf_token %}<button class="button button-primary" type="submit">Start call</button>
+      </form>
+    {% endif %}
+    <p class="call-privacy-note">Only current group members can enter this room. Camera and microphone access are requested when you choose to join.</p>
+  </section>
+</section>
+{% endblock %}
+{% block extra_head %}<script defer src="{% static 'js/group-call-lobby.js' %}"></script><link rel="stylesheet" href="{% static 'css/group-calls.css' %}" />{% endblock %}

@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Call · {{ group.name }} | MindVault{% endblock %}
+{% block page_label %}Group Call{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'css/group-calls.css' %}" />{% endblock %}
+{% block content %}
+<section class="workspace-page group-call" id="groupCall"
+  data-call-id="{{ call.pk }}"
+  data-join-url="{% url 'sharing:call_join' call.pk %}"
+  data-poll-url="{% url 'sharing:call_poll' call.pk %}"
+  data-signal-url="{% url 'sharing:call_signal' call.pk %}"
+  data-leave-url="{% url 'sharing:call_leave' call.pk %}"
+  data-group-url="{% url 'sharing:group_detail' group.pk %}">
+  <nav class="page-breadcrumb" aria-label="Breadcrumb">
+    <a href="{% url 'sharing:group_list' %}">Study groups</a><span aria-hidden="true">/</span>
+    <a href="{% url 'sharing:group_detail' group.pk %}">{{ group.name }}</a><span aria-hidden="true">/</span>
+    <span aria-current="page">Live call</span>
+  </nav>
+  <header class="call-header">
+    <div><p class="call-live-indicator"><span aria-hidden="true"></span> Live group call</p>
+      <h1>{{ group.name }}</h1><p>Audio and video connect directly between group members.</p></div>
+    <div class="call-header-actions">
+      <a class="button button-secondary" href="{% url 'sharing:group_chat' group.pk %}">Open group chat</a>
+      <a class="button button-secondary" href="{% url 'sharing:group_detail' group.pk %}">Back to group</a>
+    </div>
+  </header>
+  <div class="call-layout">
+    <section class="call-stage" aria-label="Call participants">
+      <div class="call-stage-toolbar"><h2>In this call <span id="participantCount">0</span></h2>
+        <span id="connectionStatus" role="status" aria-live="polite">Ready when you are</span></div>
+      <div class="call-video-grid" id="videoGrid" aria-live="polite">
+        <article class="call-video-tile call-local-tile" id="localTile">
+          <video id="localVideo" autoplay playsinline muted></video>
+          <div class="call-video-placeholder" id="localPlaceholder"><span aria-hidden="true">MV</span><strong>Your camera is off</strong></div>
+          <span class="call-video-name" id="localName">You</span>
+        </article>
+      </div>
+      <p class="call-error" id="callError" role="alert" hidden></p>
+      <div class="call-controls" id="callControls">
+        <button class="button button-secondary" id="joinCall" type="button">Join with camera</button>
+        <button class="button button-secondary" id="toggleMic" type="button" aria-pressed="false" disabled>Mute microphone</button>
+        <button class="button button-secondary" id="toggleCamera" type="button" aria-pressed="true" disabled>Turn camera off</button>
+        <button class="button button-danger" id="leaveCall" type="button" disabled>Leave call</button>
+      </div>
+      <p class="call-device-note">Your browser will ask for camera and microphone permission. Calls require HTTPS or localhost.</p>
+    </section>
+    <aside class="call-people-panel" aria-labelledby="peopleHeading">
+      <h2 id="peopleHeading">Participants</h2>
+      <ul class="call-people-list" id="participantList"><li class="call-people-empty">Join to see who's here.</li></ul>
+    </aside>
+  </div>
+</section>
+<script defer src="{% static 'js/group-call.js' %}"></script>
+{% endblock %}

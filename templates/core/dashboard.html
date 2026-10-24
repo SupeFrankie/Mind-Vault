@@ -13,6 +13,49 @@
 
   </section>
 
+  <section class="dashboard-panel dashboard-planner-preview" aria-labelledby="planner-preview-heading">
+    <div class="dashboard-panel-heading">
+      <div>
+        <span class="dashboard-eyebrow">YOUR DAY</span>
+        <h2 id="planner-preview-heading">Today's timetable</h2>
+        <p>{{ planner_today|date:"l, j F" }}</p>
+      </div>
+      <div class="dashboard-panel-actions">
+        <a href="{% url 'planner:entry_create' %}" class="dashboard-text-link">Add entry <span aria-hidden="true">+</span></a>
+        <a href="{% url 'planner:timetable' %}" class="dashboard-text-link">Full timetable <span aria-hidden="true">→</span></a>
+      </div>
+    </div>
+    {% if planner_next_entry %}
+    <div class="planner-next-up{% if planner_next_entry.entry.all_day and planner_next_entry.entry.entry_type == 'assignment' %} is-deadline{% endif %}">
+      <span class="planner-next-up-label">{% if planner_next_entry.entry.all_day and planner_next_entry.entry.entry_type == 'assignment' %}Upcoming deadline{% elif planner_next_entry.entry.all_day %}Upcoming all-day entry{% else %}Next up · timed event{% endif %}</span>
+      <a href="{% url 'planner:entry_detail' planner_next_entry.entry.pk %}">{{ planner_next_entry.entry.title }}</a>
+      <span class="planner-next-up-when">{{ planner_next_entry.date|date:"D, j M" }}{% if planner_next_entry.entry.all_day %} · All day{% else %} · {{ planner_next_entry.entry.start_time|time:"g:i A" }}{% endif %}{% if planner_next_entry.entry.course %} · {{ planner_next_entry.entry.course.title }}{% endif %}{% if planner_next_entry.entry.location %} · {{ planner_next_entry.entry.location }}{% endif %}</span>
+      <span class="planner-type-label type-{{ planner_next_entry.entry.entry_type }}">{{ planner_next_entry.entry.get_entry_type_display }}</span>
+      {% if planner_next_entry.starts and planner_next_entry.date == planner_today %}<span class="planner-next-up-detail">Upcoming in today's agenda</span>{% endif %}
+    </div>
+    {% endif %}
+    {% if planner_today_entries %}
+    <div class="planner-preview-list">
+      {% for entry in planner_today_entries %}
+      {% if not planner_next_entry or planner_next_entry.entry.pk != entry.pk %}
+      <a class="planner-preview-row type-{{ entry.entry_type }}" href="{% url 'planner:entry_detail' entry.pk %}">
+        <time>{% if entry.all_day %}All day{% else %}{{ entry.start_time|time:"g:i A" }}–{{ entry.end_time|time:"g:i A" }}{% endif %}</time>
+        <span class="planner-type-label type-{{ entry.entry_type }}">{{ entry.get_entry_type_display }}</span>
+        <strong>{{ entry.title }}</strong>
+        {% if entry.course %}<span class="planner-preview-course">{{ entry.course.title }}</span>{% endif %}
+      </a>
+      {% endif %}
+      {% endfor %}
+      {% if planner_today_entries|length == 5 %}<p class="planner-preview-more">{% if planner_next_entry and planner_next_entry.date == planner_today %}Showing today's other events.{% else %}Showing the first five events today.{% endif %}</p>{% endif %}
+    </div>
+    {% else %}
+    <div class="planner-preview-empty">
+      <p>Your day is open. Add a class, study session, deadline, or personal event.</p>
+      <a href="{% url 'planner:entry_create' %}" class="button button-secondary">Plan an entry</a>
+    </div>
+    {% endif %}
+  </section>
+
   <!-- Workspace overview -->
   <section class="dashboard-section" aria-labelledby="overview-heading">
     <div class="dashboard-section-heading">
