@@ -160,6 +160,75 @@ def call_llm_api(system_prompt: str, user_prompt: str) -> Dict[str, Any]:
     )
 
 
+def call_llm_chat(system_prompt: str, messages: list) -> str:
+    """Chat with LLM grounded on study material, returning free-form text response."""
+    openrouter_api_key = os.environ.get("OPENROUTER_API_KEY") or getattr(settings, "OPENROUTER_API_KEY", "")
+    gemini_api_key = os.environ.get("GEMINI_API_KEY") or getattr(settings, "GEMINI_API_KEY", "")
+
+    # Priority 1: OpenRouter API
+    if openrouter_api_key:
+        model = os.environ.get("OPENROUTER_MODEL", "meta-llama/llama-3.3-70b-instruct:free")
+        url = "https://openrouter.ai/api/v1/chat/completions"
+        headers = {
+            "Authorization": f"Bearer {openrouter_api_key}",
+            "Content-Type": "application/json",
+            "HTTP-Referer": getattr(settings, "APP_URL", "http://localhost:8000"),
+            "X-Title": "MindVault Study Assistant",
+        }
+        formatted_messages = [{"role": "system", "content": system_prompt}]
+        for m in messages:
+            formatted_messages.append({"role": m.get("role", "user"), "content": m.get("content", "")})
+
+        payload = {
+            "model": model,
+            "messages": formatted_messages,
+            "temperature": 0.5,
+        }
+        try:
+            resp = requests.post(url, headers=headers, json=payload, timeout=60)
+            resp.raise_for_status()
+            data = resp.json()
+            return data["choices"][0]["message"]["content"].strip()
+        except Exception as e:
+            logger.exception("OpenRouter chat API call failed")
+            raise LLMServiceError(f"OpenRouter chat request failed: {e}")
+
+    # Priority 2: Google Gemini Free-tier API
+    if gemini_api_key:
+        model = os.environ.get("GEMINI_MODEL", "gemini-1.5-flash")
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={gemini_api_key}"
+        gemini_contents = []
+        for m in messages:
+            role = "model" if m.get("role") == "assistant" else "user"
+            gemini_contents.append({
+                "role": role,
+                "parts": [{"text": m.get("content", "")}]
+            })
+
+        payload = {
+            "system_instruction": {
+                "parts": [{"text": system_prompt}]
+            },
+            "contents": gemini_contents,
+            "generationConfig": {
+                "temperature": 0.5,
+            },
+        }
+        try:
+            resp = requests.post(url, json=payload, timeout=60)
+            resp.raise_for_status()
+            data = resp.json()
+            return data["candidates"][0]["content"]["parts"][0]["text"].strip()
+        except Exception as e:
+            logger.exception("Gemini chat API call failed")
+            raise LLMServiceError(f"Gemini chat request failed: {e}")
+
+    raise LLMServiceError(
+        "No LLM API key configured. Please set OPENROUTER_API_KEY or GEMINI_API_KEY in your environment or .env."
+    )
+
+
+
 @transaction.atomic
 def save_generated_content(document: StudyDocument, parsed_data: Dict[str, Any]) -> None:
     """Save the parsed JSON payload into the respective relational models."""
@@ -246,8 +315,24 @@ def process_study_document(document: StudyDocument) -> Dict[str, Any]:
         document.status = StudyDocument.Status.PROCESSING
         document.save(update_fields=["status", "updated_at"])
 
-        # Extract text if document file is provided
+        # Extract text if document file is provided or material is associated
         text_to_analyze = document.raw_text.strip()
+        if document.material and not text_to_analyze:
+            material_chunks = []
+            if document.material.notes:
+                material_chunks.append(f"Notes:\n{document.material.notes}")
+            if document.material.has_file:
+                try:
+                    file_text = extract_text_from_file(document.material.file)
+                    if file_text:
+                        material_chunks.append(file_text)
+                except Exception as ex:
+                    logger.warning("Could not extract text from material file: %s", ex)
+            if material_chunks:
+                text_to_analyze = "\n\n".join(material_chunks)
+                document.extracted_text = text_to_analyze
+                document.save(update_fields=["extracted_text", "updated_at"])
+
         if document.document_file and not text_to_analyze:
             extracted = extract_text_from_file(document.document_file)
             document.extracted_text = extracted
