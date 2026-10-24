@@ -1,0 +1,1649 @@
+{% extends "base.html" %}
+{% block title %}AI Study Assistant | MindVault{% endblock %}
+{% block page_label %}AI Study Assistant{% endblock %}
+
+{% block content %}
+<div class="workspace-page study-assistant-dashboard">
+  <!-- Page Header -->
+  <header class="page-heading">
+    <div>
+      <span class="eyebrow">INTELLIGENT STUDY HUB</span>
+      <h1 class="flex items-center gap-2">
+        <span>AI Study Assistant</span>
+        <span class="ai-badge">Gemini AI</span>
+      </h1>
+      <p>Transform your course documents and notes into structured revision guides, flashcards, interactive quizzes, and group action plans.</p>
+    </div>
+  </header>
+
+  <!-- Error Banner -->
+  <div id="errorAlert" class="alert-banner hidden" role="alert">
+    <div class="flex items-start gap-3">
+      <span class="alert-icon" aria-hidden="true">⚠</span>
+      <div class="flex-1">
+        <strong class="font-semibold block" id="errorTitle">Generation Error</strong>
+        <p id="errorMessage" class="text-sm mt-0.5"></p>
+      </div>
+      <button type="button" id="dismissErrorBtn" class="close-btn" aria-label="Dismiss error">×</button>
+    </div>
+  </div>
+
+  <!-- Top Ingestion Grid: Upload & Past Sessions -->
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+    
+    <!-- Upload / Input Widget (2 columns) -->
+    <div class="lg:col-span-2 surface-panel p-6 rounded-xl border border-[var(--border)]">
+      <div class="section-heading mb-4">
+        <div>
+          <h2 class="text-lg font-bold text-[var(--text-primary)]">Upload Study Material</h2>
+          <p class="text-sm text-[var(--text-secondary)]">Provide course slides, syllabus, PDF textbook chapters, or paste lecture notes.</p>
+        </div>
+      </div>
+
+      <form id="studyGenerateForm" class="space-y-4">
+        {% csrf_token %}
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <!-- Document Title -->
+          <div>
+            <label for="docTitle" class="form-label">Document Title</label>
+            <input
+              type="text"
+              id="docTitle"
+              name="title"
+              class="form-input"
+              placeholder="e.g., CS301 Distributed Systems - Week 4"
+            />
+          </div>
+
+          <!-- Study Group Association -->
+          <div>
+            <label for="groupSelect" class="form-label">Associate with Study Group (Optional)</label>
+            <select id="groupSelect" name="group_id" class="form-input">
+              <option value="">-- Personal (No Group) --</option>
+              {% for g in groups %}
+              <option value="{{ g.id }}">{{ g.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+
+        <!-- Input Mode Switcher (File vs Text) -->
+        <div class="flex items-center gap-2 border-b border-[var(--border)] pb-2 pt-2">
+          <button
+            type="button"
+            id="modeFileBtn"
+            class="mode-pill active"
+          >
+            <span>📁 Upload File (PDF / TXT)</span>
+          </button>
+          <button
+            type="button"
+            id="modeTextBtn"
+            class="mode-pill"
+          >
+            <span>📝 Paste Raw Text</span>
+          </button>
+        </div>
+
+        <!-- File Upload Area -->
+        <div id="fileUploadContainer">
+          <div
+            id="dropZone"
+            class="drop-zone"
+            tabindex="0"
+            role="button"
+            aria-label="Upload document file"
+          >
+            <input
+              type="file"
+              id="fileInput"
+              name="file"
+              accept=".pdf,.txt,.md"
+              class="hidden"
+            />
+            <div class="drop-zone-content">
+              <div class="drop-icon">📄</div>
+              <p class="drop-text font-medium">
+                <span class="text-[var(--brand-primary)] underline">Click to browse</span> or drag and drop your document
+              </p>
+              <p class="drop-subtext">Supports PDF, TXT, Markdown (up to 20MB)</p>
+            </div>
+            <!-- File selected badge -->
+            <div id="fileSelectedDisplay" class="file-selected-badge hidden">
+              <span class="file-name font-medium" id="selectedFileName"></span>
+              <span class="file-size text-xs text-[var(--text-secondary)]" id="selectedFileSize"></span>
+              <button type="button" id="removeFileBtn" class="remove-file-btn" title="Remove file">×</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Raw Text Input Area (initially hidden) -->
+        <div id="rawTextInputContainer" class="hidden">
+          <label for="rawText" class="form-label sr-only">Paste Study Notes</label>
+          <textarea
+            id="rawText"
+            name="text"
+            rows="6"
+            class="form-input font-mono text-sm"
+            placeholder="Paste raw lecture transcripts, textbook excerpts, or revision summaries here..."
+          ></textarea>
+        </div>
+
+        <!-- Submit Button -->
+        <div class="pt-2 flex items-center justify-between">
+          <div class="text-xs text-[var(--text-secondary)] flex items-center gap-1.5">
+            <span class="inline-block w-2 h-2 rounded-full bg-emerald-500"></span>
+            <span>Generates personal study guide & group synthesis simultaneously</span>
+          </div>
+          <button
+            type="submit"
+            id="submitGenerateBtn"
+            class="button button-primary flex items-center gap-2 px-5 py-2.5 font-semibold"
+          >
+            <span id="btnIcon">✦</span>
+            <span id="btnText">Generate Study Guide</span>
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Recent Documents / History (1 column) -->
+    <div class="surface-panel p-6 rounded-xl border border-[var(--border)] flex flex-col">
+      <div class="section-heading mb-3">
+        <h2 class="text-lg font-bold text-[var(--text-primary)]">Recent Sessions</h2>
+        <p class="text-sm text-[var(--text-secondary)]">Click to view previously generated guides.</p>
+      </div>
+
+      <div id="recentDocsList" class="flex-1 overflow-y-auto space-y-2 max-h-[340px] pr-1">
+        {% if recent_documents %}
+          {% for doc in recent_documents %}
+          <button
+            type="button"
+            class="recent-doc-item w-full text-left p-3 rounded-lg border border-[var(--border)] transition hover:border-[var(--brand-primary)]"
+            data-doc-id="{{ doc.id }}"
+          >
+            <div class="flex items-center justify-between">
+              <span class="font-medium text-sm text-[var(--text-primary)] truncate max-w-[180px]">{{ doc.title }}</span>
+              <span class="status-badge status-{{ doc.status }} text-[11px]">{{ doc.status|capfirst }}</span>
+            </div>
+            <div class="text-[11px] text-[var(--text-secondary)] mt-1 flex items-center justify-between">
+              <span>{{ doc.created_at|date:"M d, Y" }}</span>
+              {% if doc.group %}
+              <span class="truncate max-w-[120px] text-[var(--brand-primary)]">👥 {{ doc.group.name }}</span>
+              {% endif %}
+            </div>
+          </button>
+          {% endfor %}
+        {% else %}
+          <div id="noRecentDocs" class="empty-state py-8 text-center text-sm text-[var(--text-secondary)]">
+            <p>No study documents yet.</p>
+            <p class="text-xs mt-1">Upload a document to get started!</p>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Loading Indicator Overlay -->
+  <div id="generationLoadingState" class="hidden surface-panel p-8 rounded-xl border border-[var(--border)] text-center my-6">
+    <div class="spinner mx-auto mb-4"></div>
+    <h3 class="text-lg font-bold text-[var(--text-primary)] mb-1">Analyzing Ingested Study Content</h3>
+    <p class="text-sm text-[var(--text-secondary)] max-w-md mx-auto">
+      Parsing document structure, extracting core concepts, formulating flashcards, questions, and detecting material conflicts...
+    </p>
+  </div>
+
+  <!-- Main Output Section (Shown when a document is generated or loaded) -->
+  <div id="resultsSection" class="hidden space-y-6">
+
+    <!-- Active Document Title Bar -->
+    <div class="surface-panel p-4 rounded-xl border border-[var(--border)] flex flex-wrap items-center justify-between gap-4">
+      <div>
+        <div class="flex items-center gap-2">
+          <h2 id="activeDocTitle" class="text-xl font-bold text-[var(--text-primary)]">Document Title</h2>
+          <span id="activeDocGroup" class="hidden text-xs px-2.5 py-0.5 rounded-full bg-[var(--brand-pale)] text-[var(--brand-forest)] font-medium"></span>
+        </div>
+        <p id="activeDocDate" class="text-xs text-[var(--text-secondary)] mt-0.5">Generated just now</p>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="flex items-center gap-2">
+        <button type="button" id="copySummaryBtn" class="button button-secondary text-xs px-3 py-1.5" title="Copy full study notes">
+          📋 Copy Summary
+        </button>
+      </div>
+    </div>
+
+    <!-- Main Tabbed Navigation Toggle -->
+    <div class="main-tabs-nav flex border-b border-[var(--border)]">
+      <button
+        type="button"
+        id="tabBtnPersonal"
+        class="tab-nav-btn active"
+        data-target="personalTabContent"
+      >
+        <span class="tab-icon">✦</span>
+        <span class="tab-title">Personal AI Study Guide</span>
+        <span class="tab-pill">Notes · Flashcards · Quiz</span>
+      </button>
+
+      <button
+        type="button"
+        id="tabBtnGroup"
+        class="tab-nav-btn"
+        data-target="groupTabContent"
+      >
+        <span class="tab-icon">👥</span>
+        <span class="tab-title">Group Study Resources</span>
+        <span class="tab-pill">Conflicts · Queries · Tasks</span>
+      </button>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- TAB 1: PERSONAL AI STUDY GUIDE -->
+    <!-- ========================================================================= -->
+    <div id="personalTabContent" class="tab-panel space-y-8">
+
+      <!-- 1. Notes & Explanations Layout -->
+      <section class="space-y-6">
+        <div class="section-title-wrap">
+          <h3 class="text-lg font-bold text-[var(--text-primary)] flex items-center gap-2">
+            <span>📖</span>
+            <span>Notes & Explanations</span>
+          </h3>
+          <p class="text-sm text-[var(--text-secondary)]">High-level executive overview, detailed conceptual breakdowns, and bulleted study points.</p>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <!-- High-Level Summary Card -->
+          <div class="surface-panel p-5 rounded-xl border border-[var(--border)] flex flex-col">
+            <div class="flex items-center justify-between pb-3 border-b border-[var(--border)] mb-3">
+              <h4 class="font-bold text-sm tracking-wide uppercase text-[var(--brand-primary)] flex items-center gap-2">
+                <span>Summary Overview</span>
+              </h4>
+              <span class="text-xs text-[var(--text-secondary)]">High-level</span>
+            </div>
+            <div id="personalSummaryText" class="prose text-sm text-[var(--text-primary)] leading-relaxed flex-1">
+              <!-- Injected by JS -->
+            </div>
+          </div>
+
+          <!-- Conceptual Explanation Card -->
+          <div class="surface-panel p-5 rounded-xl border border-[var(--border)] flex flex-col">
+            <div class="flex items-center justify-between pb-3 border-b border-[var(--border)] mb-3">
+              <h4 class="font-bold text-sm tracking-wide uppercase text-[var(--brand-primary)] flex items-center gap-2">
+                <span>Key Explanations & Themes</span>
+              </h4>
+              <span class="text-xs text-[var(--text-secondary)]">Detailed Breakdown</span>
+            </div>
+            <div id="personalExplanationText" class="prose text-sm text-[var(--text-primary)] leading-relaxed flex-1">
+              <!-- Injected by JS -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Structured Notes Accordion / Card List -->
+        <div class="surface-panel p-5 rounded-xl border border-[var(--border)]">
+          <div class="flex items-center justify-between pb-3 border-b border-[var(--border)] mb-4">
+            <h4 class="font-bold text-sm tracking-wide uppercase text-[var(--brand-primary)]">
+              <span>Structured Study Notes</span>
+            </h4>
+            <span id="notesCount" class="text-xs px-2 py-0.5 rounded bg-[var(--surface-muted)] text-[var(--text-secondary)] font-semibold">0 notes</span>
+          </div>
+          <div id="structuredNotesList" class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <!-- Notes items injected by JS -->
+          </div>
+        </div>
+      </section>
+
+      <!-- 2. Flashcard Interactive UI -->
+      <section class="space-y-4">
+        <div class="section-title-wrap flex items-center justify-between">
+          <div>
+            <h3 class="text-lg font-bold text-[var(--text-primary)] flex items-center gap-2">
+              <span>🗂</span>
+              <span>Interactive Flashcards</span>
+            </h3>
+            <p class="text-sm text-[var(--text-secondary)]">Click card or press Spacebar to flip. Use Left/Right keys or controls to navigate.</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <button type="button" id="shuffleFlashcardsBtn" class="button button-secondary text-xs px-3 py-1.5" title="Shuffle flashcards">
+              🔀 Shuffle
+            </button>
+            <span id="flashcardCounter" class="text-sm font-semibold text-[var(--text-primary)] px-3 py-1 rounded bg-[var(--surface-muted)]">
+              1 / 1
+            </span>
+          </div>
+        </div>
+
+        <!-- 3D Flashcard Deck Container -->
+        <div class="flashcard-deck-container max-w-2xl mx-auto py-4">
+          <div
+            id="activeFlashcard"
+            class="flashcard-card flashcard-perspective cursor-pointer select-none"
+            role="button"
+            tabindex="0"
+            aria-label="Study flashcard. Click to flip."
+          >
+            <div class="flashcard-inner" id="flashcardInner">
+              <!-- Front Face: Question -->
+              <div class="flashcard-face flashcard-front surface-panel p-8 rounded-2xl border-2 border-[var(--border)] flex flex-col justify-between shadow-lg">
+                <div class="flex items-center justify-between">
+                  <span class="text-xs font-bold uppercase tracking-wider text-[var(--brand-primary)]">Question</span>
+                  <span class="text-xs text-[var(--text-secondary)]">Click or press Space to reveal answer</span>
+                </div>
+                <div class="my-auto py-6 text-center">
+                  <p id="flashcardQuestionText" class="text-xl md:text-2xl font-semibold text-[var(--text-primary)] leading-snug">
+                    Question text will appear here...
+                  </p>
+                </div>
+                <div class="flex items-center justify-center text-xs text-[var(--text-secondary)]">
+                  <span>↺ Flip to reveal</span>
+                </div>
+              </div>
+
+              <!-- Back Face: Answer -->
+              <div class="flashcard-face flashcard-back surface-panel p-8 rounded-2xl border-2 border-[var(--brand-primary)] flex flex-col justify-between shadow-lg">
+                <div class="flex items-center justify-between">
+                  <span class="text-xs font-bold uppercase tracking-wider text-[var(--brand-primary)]">Answer</span>
+                  <span class="text-xs text-[var(--text-secondary)]">Click to flip back</span>
+                </div>
+                <div class="my-auto py-6 text-center">
+                  <p id="flashcardAnswerText" class="text-lg md:text-xl font-medium text-[var(--text-primary)] leading-relaxed">
+                    Answer text will appear here...
+                  </p>
+                </div>
+                <div class="flex items-center justify-center text-xs text-[var(--text-secondary)]">
+                  <span>↺ Flip back to question</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Flashcard Deck Controls -->
+          <div class="flex items-center justify-center gap-4 mt-6">
+            <button
+              type="button"
+              id="prevFlashcardBtn"
+              class="button button-secondary px-4 py-2"
+              aria-label="Previous flashcard"
+            >
+              ← Previous
+            </button>
+            <button
+              type="button"
+              id="flipFlashcardBtn"
+              class="button button-primary px-5 py-2"
+            >
+              ↺ Flip Card
+            </button>
+            <button
+              type="button"
+              id="nextFlashcardBtn"
+              class="button button-secondary px-4 py-2"
+              aria-label="Next flashcard"
+            >
+              Next →
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- 3. Quiz UI -->
+      <section class="space-y-4">
+        <div class="section-title-wrap flex items-center justify-between">
+          <div>
+            <h3 class="text-lg font-bold text-[var(--text-primary)] flex items-center gap-2">
+              <span>✍</span>
+              <span>Self-Assessment Quizzes</span>
+            </h3>
+            <p class="text-sm text-[var(--text-secondary)]">Test your comprehension with multiple-choice questions and instant feedback.</p>
+          </div>
+          <!-- Quiz Score Pill -->
+          <div id="quizScoreContainer" class="flex items-center gap-3">
+            <span id="quizScoreBadge" class="text-sm font-bold px-3 py-1.5 rounded-lg bg-[var(--surface-muted)] text-[var(--brand-forest)]">
+              Score: <span id="quizScoreCount">0</span> / <span id="quizTotalCount">0</span>
+            </span>
+            <button type="button" id="resetQuizBtn" class="button button-secondary text-xs px-3 py-1.5">
+              Reset Quiz
+            </button>
+          </div>
+        </div>
+
+        <!-- Quiz Questions List Container -->
+        <div id="quizQuestionsContainer" class="space-y-5">
+          <!-- Quiz items injected by JS -->
+        </div>
+      </section>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- TAB 2: GROUP STUDY RESOURCES -->
+    <!-- ========================================================================= -->
+    <div id="groupTabContent" class="tab-panel hidden space-y-8">
+
+      <div class="section-title-wrap">
+        <h3 class="text-lg font-bold text-[var(--text-primary)] flex items-center gap-2">
+          <span>👥</span>
+          <span>Collaborative Group Resources</span>
+        </h3>
+        <p class="text-sm text-[var(--text-secondary)]">Synthesized revision topics, detected contradictions across materials, and group study tasks.</p>
+      </div>
+
+      <!-- Revision Summary Card -->
+      <div class="surface-panel p-6 rounded-xl border border-[var(--border)]">
+        <div class="flex items-center justify-between pb-3 border-b border-[var(--border)] mb-3">
+          <h4 class="font-bold text-sm tracking-wide uppercase text-[var(--brand-primary)] flex items-center gap-2">
+            <span>📢 Group Revision Summary</span>
+          </h4>
+          <span class="text-xs text-[var(--text-secondary)]">Shared synthesis</span>
+        </div>
+        <div id="groupRevisionSummaryText" class="prose text-sm text-[var(--text-primary)] leading-relaxed">
+          <!-- Injected by JS -->
+        </div>
+      </div>
+
+      <!-- Material Conflicts & Unanswered Queries Grid -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+        <!-- Material Conflicts Dashboard -->
+        <div class="surface-panel p-6 rounded-xl border border-[var(--border)] flex flex-col">
+          <div class="flex items-center justify-between pb-3 border-b border-[var(--border)] mb-3">
+            <h4 class="font-bold text-sm tracking-wide uppercase text-amber-600 flex items-center gap-2">
+              <span>⚠ Material Conflicts</span>
+            </h4>
+            <span id="conflictCountBadge" class="text-xs px-2 py-0.5 rounded bg-amber-500/10 text-amber-600 font-semibold">0 discrepancies</span>
+          </div>
+          <p class="text-xs text-[var(--text-secondary)] mb-3">
+            Inconsistencies, contradictory definitions, or conflicting figures identified in the uploaded materials.
+          </p>
+          <div id="materialConflictsList" class="space-y-3 flex-1">
+            <!-- Conflict cards injected by JS -->
+          </div>
+        </div>
+
+        <!-- Unanswered Queries Dashboard -->
+        <div class="surface-panel p-6 rounded-xl border border-[var(--border)] flex flex-col">
+          <div class="flex items-center justify-between pb-3 border-b border-[var(--border)] mb-3">
+            <h4 class="font-bold text-sm tracking-wide uppercase text-sky-600 flex items-center gap-2">
+              <span>❓ Unanswered Queries</span>
+            </h4>
+            <span id="queriesCountBadge" class="text-xs px-2 py-0.5 rounded bg-sky-500/10 text-sky-600 font-semibold">0 queries</span>
+          </div>
+          <p class="text-xs text-[var(--text-secondary)] mb-3">
+            Ambiguous points, unexplained assumptions, or open questions requiring group discussion or lecturer inquiry.
+          </p>
+          <div id="unansweredQueriesList" class="space-y-3 flex-1">
+            <!-- Query cards injected by JS -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Action Plan: Next Session Tasks -->
+      <div class="surface-panel p-6 rounded-xl border border-[var(--border)]">
+        <div class="flex items-center justify-between pb-3 border-b border-[var(--border)] mb-4">
+          <div>
+            <h4 class="font-bold text-sm tracking-wide uppercase text-[var(--brand-primary)] flex items-center gap-2">
+              <span>📋 Action Plan: Tasks for Next Session</span>
+            </h4>
+            <p class="text-xs text-[var(--text-secondary)] mt-0.5">Interactive checklist of actionable items for your next group study meeting.</p>
+          </div>
+          <div id="tasksProgressBadge" class="text-xs font-semibold px-2.5 py-1 rounded bg-[var(--surface-muted)] text-[var(--brand-forest)]">
+            <span id="tasksCompletedCount">0</span> of <span id="tasksTotalCount">0</span> completed
+          </div>
+        </div>
+
+        <div id="groupTasksList" class="space-y-2.5">
+          <!-- Task checklist items injected by JS -->
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+</div>
+
+<!-- Scoped Styles for Interactive Components -->
+<style>
+  .study-assistant-dashboard {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding-bottom: 3rem;
+  }
+
+  .ai-badge {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 9999px;
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: #ffffff;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+
+  /* Form Elements */
+  .form-label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 6px;
+    color: var(--text-primary);
+  }
+
+  .form-input {
+    width: 100%;
+    padding: 10px 12px;
+    font-size: 14px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text-primary);
+    outline: none;
+    transition: border-color 150ms ease, box-shadow 150ms ease;
+  }
+
+  .form-input:focus {
+    border-color: var(--brand-primary);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand-primary), transparent 85%);
+  }
+
+  /* Mode switch pills */
+  .mode-pill {
+    padding: 6px 12px;
+    font-size: 13px;
+    font-weight: 600;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text-secondary);
+    border: none;
+    cursor: pointer;
+    transition: all 150ms ease;
+  }
+
+  .mode-pill:hover {
+    color: var(--text-primary);
+    background: var(--surface-muted);
+  }
+
+  .mode-pill.active {
+    background: var(--surface-muted);
+    color: var(--brand-forest);
+  }
+
+  /* Drop Zone */
+  .drop-zone {
+    border: 2px dashed var(--border);
+    border-radius: 12px;
+    padding: 28px 20px;
+    text-align: center;
+    cursor: pointer;
+    background: var(--brand-background);
+    transition: border-color 150ms ease, background-color 150ms ease;
+  }
+
+  .drop-zone:hover,
+  .drop-zone.dragover {
+    border-color: var(--brand-primary);
+    background: color-mix(in srgb, var(--brand-primary), transparent 94%);
+  }
+
+  .drop-icon {
+    font-size: 32px;
+    margin-bottom: 8px;
+  }
+
+  .drop-text {
+    font-size: 14px;
+    color: var(--text-primary);
+  }
+
+  .drop-subtext {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-top: 4px;
+  }
+
+  .file-selected-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 10px;
+    padding: 6px 12px;
+    border-radius: 9999px;
+    background: var(--surface);
+    border: 1px solid var(--brand-primary);
+    color: var(--text-primary);
+    font-size: 13px;
+  }
+
+  .remove-file-btn {
+    border: none;
+    background: transparent;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    color: var(--error-text);
+  }
+
+  /* Alert Banner */
+  .alert-banner {
+    padding: 14px 16px;
+    border-radius: 10px;
+    background: var(--error-bg);
+    border: 1px solid #fecaca;
+    color: var(--error-text);
+    margin-bottom: 1.5rem;
+  }
+
+  .alert-icon {
+    font-size: 20px;
+    line-height: 1;
+  }
+
+  .close-btn {
+    background: transparent;
+    border: none;
+    font-size: 20px;
+    line-height: 1;
+    cursor: pointer;
+    color: inherit;
+    opacity: 0.7;
+  }
+
+  .close-btn:hover {
+    opacity: 1;
+  }
+
+  /* Tab Navigation */
+  .main-tabs-nav {
+    gap: 8px;
+    margin-bottom: 1.5rem;
+  }
+
+  .tab-nav-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 18px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    background: transparent;
+    border: none;
+    border-bottom: 3px solid transparent;
+    cursor: pointer;
+    transition: all 150ms ease;
+  }
+
+  .tab-nav-btn:hover {
+    color: var(--text-primary);
+  }
+
+  .tab-nav-btn.active {
+    color: var(--brand-forest);
+    border-bottom-color: var(--brand-primary);
+  }
+
+  .tab-icon {
+    font-size: 16px;
+  }
+
+  .tab-pill {
+    font-size: 11px;
+    font-weight: 500;
+    padding: 2px 7px;
+    border-radius: 9999px;
+    background: var(--surface-muted);
+    color: var(--text-secondary);
+  }
+
+  /* Flashcard 3D perspective flip */
+  .flashcard-perspective {
+    perspective: 1200px;
+  }
+
+  .flashcard-card {
+    min-height: 280px;
+    position: relative;
+    border-radius: 16px;
+    outline: none;
+  }
+
+  .flashcard-inner {
+    position: relative;
+    width: 100%;
+    min-height: 280px;
+    transform-style: preserve-3d;
+    transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .flashcard-inner.is-flipped {
+    transform: rotateY(180deg);
+  }
+
+  .flashcard-face {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    border-radius: 16px;
+  }
+
+  .flashcard-front {
+    transform: rotateY(0deg);
+  }
+
+  .flashcard-back {
+    transform: rotateY(180deg);
+    background-color: var(--surface);
+  }
+
+  /* Quiz choices */
+  .quiz-option-btn {
+    width: 100%;
+    text-align: left;
+    padding: 12px 16px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text-primary);
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 150ms ease;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .quiz-option-btn:hover:not(:disabled) {
+    border-color: var(--brand-primary);
+    background: color-mix(in srgb, var(--brand-primary), transparent 94%);
+  }
+
+  .quiz-option-btn.selected {
+    border-color: var(--brand-forest);
+    background: var(--surface-muted);
+    font-weight: 600;
+  }
+
+  .quiz-option-btn.correct {
+    border-color: #10b981 !important;
+    background: #e7f4e8 !important;
+    color: #166534 !important;
+    font-weight: 600;
+  }
+
+  .quiz-option-btn.incorrect {
+    border-color: #ef4444 !important;
+    background: #fff0ed !important;
+    color: #991b1b !important;
+    font-weight: 600;
+  }
+
+  /* Checkbox / Task items */
+  .task-item {
+    transition: background-color 150ms ease, opacity 150ms ease;
+  }
+
+  .task-item.completed .task-title {
+    text-decoration: line-through;
+    opacity: 0.65;
+  }
+
+  /* Loading Spinner */
+  .spinner {
+    width: 36px;
+    height: 36px;
+    border: 3px solid var(--border);
+    border-top-color: var(--brand-primary);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  .status-badge {
+    padding: 2px 7px;
+    border-radius: 9999px;
+    font-weight: 600;
+  }
+
+  .status-completed {
+    background: #e7f4e8;
+    color: #166534;
+  }
+
+  .status-pending,
+  .status-processing {
+    background: #fef3c7;
+    color: #92400e;
+  }
+
+  .status-failed {
+    background: #fff0ed;
+    color: #991b1b;
+  }
+</style>
+
+<!-- Client-side Interactive JavaScript Engine -->
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    // State Store
+    let currentStudyData = null;
+    let activeFlashcardIndex = 0;
+    let flashcardsList = [];
+    let isFlipped = false;
+    let quizUserAnswers = {}; // { questionId: selectedIndex }
+    let quizSubmitted = {}; // { questionId: boolean }
+
+    // DOM Elements
+    const form = document.getElementById("studyGenerateForm");
+    const fileInput = document.getElementById("fileInput");
+    const dropZone = document.getElementById("dropZone");
+    const fileSelectedDisplay = document.getElementById("fileSelectedDisplay");
+    const selectedFileName = document.getElementById("selectedFileName");
+    const selectedFileSize = document.getElementById("selectedFileSize");
+    const removeFileBtn = document.getElementById("removeFileBtn");
+    const rawText = document.getElementById("rawText");
+    const docTitle = document.getElementById("docTitle");
+    const groupSelect = document.getElementById("groupSelect");
+
+    const modeFileBtn = document.getElementById("modeFileBtn");
+    const modeTextBtn = document.getElementById("modeTextBtn");
+    const fileUploadContainer = document.getElementById("fileUploadContainer");
+    const rawTextInputContainer = document.getElementById("rawTextInputContainer");
+
+    const submitBtn = document.getElementById("submitGenerateBtn");
+    const btnIcon = document.getElementById("btnIcon");
+    const btnText = document.getElementById("btnText");
+
+    const errorAlert = document.getElementById("errorAlert");
+    const errorTitle = document.getElementById("errorTitle");
+    const errorMessage = document.getElementById("errorMessage");
+    const dismissErrorBtn = document.getElementById("dismissErrorBtn");
+
+    const loadingState = document.getElementById("generationLoadingState");
+    const resultsSection = document.getElementById("resultsSection");
+
+    const tabBtnPersonal = document.getElementById("tabBtnPersonal");
+    const tabBtnGroup = document.getElementById("tabBtnGroup");
+    const personalTabContent = document.getElementById("personalTabContent");
+    const groupTabContent = document.getElementById("groupTabContent");
+
+    // Flashcard Elements
+    const activeFlashcard = document.getElementById("activeFlashcard");
+    const flashcardInner = document.getElementById("flashcardInner");
+    const flashcardQuestionText = document.getElementById("flashcardQuestionText");
+    const flashcardAnswerText = document.getElementById("flashcardAnswerText");
+    const prevFlashcardBtn = document.getElementById("prevFlashcardBtn");
+    const nextFlashcardBtn = document.getElementById("nextFlashcardBtn");
+    const flipFlashcardBtn = document.getElementById("flipFlashcardBtn");
+    const shuffleFlashcardsBtn = document.getElementById("shuffleFlashcardsBtn");
+    const flashcardCounter = document.getElementById("flashcardCounter");
+
+    // Helper: CSRF Token
+    function getCsrfToken() {
+      const csrfInput = document.querySelector('input[name="csrfmiddlewaretoken"]');
+      if (csrfInput) return csrfInput.value;
+      const match = document.cookie.match(/csrftoken=([^;]+)/);
+      return match ? match[1] : "";
+    }
+
+    // Helper: Format bytes
+    function formatBytes(bytes) {
+      if (bytes === 0) return "0 Bytes";
+      const k = 1024;
+      const sizes = ["Bytes", "KB", "MB"];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
+    }
+
+    // Mode Switching (File vs Raw Text)
+    modeFileBtn.addEventListener("click", () => {
+      modeFileBtn.classList.add("active");
+      modeTextBtn.classList.remove("active");
+      fileUploadContainer.classList.remove("hidden");
+      rawTextInputContainer.classList.add("hidden");
+    });
+
+    modeTextBtn.addEventListener("click", () => {
+      modeTextBtn.classList.add("active");
+      modeFileBtn.classList.remove("active");
+      rawTextInputContainer.classList.remove("hidden");
+      fileUploadContainer.classList.add("hidden");
+    });
+
+    // File Drag & Drop Handling
+    dropZone.addEventListener("click", () => fileInput.click());
+
+    fileInput.addEventListener("change", () => {
+      if (fileInput.files.length > 0) {
+        handleFileSelection(fileInput.files[0]);
+      }
+    });
+
+    ["dragenter", "dragover"].forEach((eventName) => {
+      dropZone.addEventListener(eventName, (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        dropZone.classList.add("dragover");
+      });
+    });
+
+    ["dragleave", "drop"].forEach((eventName) => {
+      dropZone.addEventListener(eventName, (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        dropZone.classList.remove("dragover");
+      });
+    });
+
+    dropZone.addEventListener("drop", (e) => {
+      const dt = e.dataTransfer;
+      if (dt.files && dt.files.length > 0) {
+        fileInput.files = dt.files;
+        handleFileSelection(dt.files[0]);
+      }
+    });
+
+    function handleFileSelection(file) {
+      selectedFileName.textContent = file.name;
+      selectedFileSize.textContent = `(${formatBytes(file.size)})`;
+      fileSelectedDisplay.classList.remove("hidden");
+      if (!docTitle.value.trim()) {
+        const cleanName = file.name.replace(/\.[^/.]+$/, "");
+        docTitle.value = cleanName;
+      }
+    }
+
+    removeFileBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      fileInput.value = "";
+      fileSelectedDisplay.classList.add("hidden");
+    });
+
+    // Error Alert Functions
+    function showError(msg, title = "Generation Error") {
+      errorTitle.textContent = title;
+      errorMessage.textContent = msg;
+      errorAlert.classList.remove("hidden");
+      errorAlert.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+
+    function hideError() {
+      errorAlert.classList.add("hidden");
+    }
+
+    dismissErrorBtn.addEventListener("click", hideError);
+
+    // Tab Switching
+    tabBtnPersonal.addEventListener("click", () => {
+      tabBtnPersonal.classList.add("active");
+      tabBtnGroup.classList.remove("active");
+      personalTabContent.classList.remove("hidden");
+      groupTabContent.classList.add("hidden");
+    });
+
+    tabBtnGroup.addEventListener("click", () => {
+      tabBtnGroup.classList.add("active");
+      tabBtnPersonal.classList.remove("active");
+      groupTabContent.classList.remove("hidden");
+      personalTabContent.classList.add("hidden");
+    });
+
+    // Form Submit (Generate Content via API)
+    form.addEventListener("submit", async function (e) {
+      e.preventDefault();
+      hideError();
+
+      const hasFile = fileInput.files && fileInput.files.length > 0;
+      const textVal = rawText.value.trim();
+
+      if (!hasFile && !textVal) {
+        showError("Please select a study document (PDF/TXT) or paste notes into the text box.", "Input Required");
+        return;
+      }
+
+      // Prepare FormData
+      const formData = new FormData();
+      if (hasFile) {
+        formData.append("file", fileInput.files[0]);
+      }
+      if (textVal) {
+        formData.append("text", textVal);
+      }
+      if (docTitle.value.trim()) {
+        formData.append("title", docTitle.value.trim());
+      }
+      if (groupSelect.value) {
+        formData.append("group_id", groupSelect.value);
+      }
+
+      // UI Loading State
+      setLoading(true);
+
+      try {
+        const response = await fetch("{% url 'study_assistant:generate' %}", {
+          method: "POST",
+          headers: {
+            "X-CSRFToken": getCsrfToken(),
+          },
+          body: formData,
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || "Failed to process study material.");
+        }
+
+        // Successfully generated
+        renderStudyDocument(data);
+        appendRecentDocumentPill(data.document);
+      } catch (err) {
+        showError(err.message || "An unexpected error occurred while generating study materials.");
+      } finally {
+        setLoading(false);
+      }
+    });
+
+    function setLoading(isLoading) {
+      if (isLoading) {
+        submitBtn.disabled = true;
+        btnIcon.textContent = "⏳";
+        btnText.textContent = "Analyzing & Generating...";
+        loadingState.classList.remove("hidden");
+        resultsSection.classList.add("hidden");
+      } else {
+        submitBtn.disabled = false;
+        btnIcon.textContent = "✦";
+        btnText.textContent = "Generate Study Guide";
+        loadingState.classList.add("hidden");
+      }
+    }
+
+    // Render Study Document Payload
+    function renderStudyDocument(data) {
+      currentStudyData = data;
+      quizUserAnswers = {};
+      quizSubmitted = {};
+
+      const doc = data.document;
+      const personal = data.personal_study_guide || {};
+      const group = data.group_study_resources || {};
+
+      // Document Header
+      document.getElementById("activeDocTitle").textContent = doc.title || "Study Guide";
+      document.getElementById("activeDocDate").textContent = `Generated on ${new Date(doc.created_at).toLocaleDateString(undefined, {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      })}`;
+
+      const groupBadge = document.getElementById("activeDocGroup");
+      if (doc.group_id) {
+        const opt = groupSelect.querySelector(`option[value="${doc.group_id}"]`);
+        groupBadge.textContent = opt ? `👥 ${opt.textContent}` : "👥 Study Group";
+        groupBadge.classList.remove("hidden");
+      } else {
+        groupBadge.classList.add("hidden");
+      }
+
+      // 1. Personal Tab: Summaries & Notes
+      document.getElementById("personalSummaryText").innerHTML = escapeHtml(personal.summary || "No summary generated.").replace(/\n/g, "<br>");
+      document.getElementById("personalExplanationText").innerHTML = escapeHtml(personal.explanation || "No explanation provided.").replace(/\n/g, "<br>");
+
+      // Structured Notes
+      const notesContainer = document.getElementById("structuredNotesList");
+      notesContainer.innerHTML = "";
+      const notes = personal.structured_notes || [];
+      document.getElementById("notesCount").textContent = `${notes.length} notes`;
+
+      if (notes.length === 0) {
+        notesContainer.innerHTML = `<p class="text-sm text-[var(--text-secondary)] col-span-2">No structured notes generated.</p>`;
+      } else {
+        notes.forEach((note, idx) => {
+          const card = document.createElement("div");
+          card.className = "p-3.5 rounded-lg border border-[var(--border)] bg-[var(--surface)] text-sm flex items-start gap-2.5";
+          card.innerHTML = `
+            <span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-[var(--brand-pale)] text-[var(--brand-forest)] text-xs font-bold shrink-0 mt-0.5">${idx + 1}</span>
+            <span class="text-[var(--text-primary)] leading-relaxed">${escapeHtml(note)}</span>
+          `;
+          notesContainer.appendChild(card);
+        });
+      }
+
+      // 2. Personal Tab: Flashcards
+      flashcardsList = personal.flashcards || [];
+      activeFlashcardIndex = 0;
+      isFlipped = false;
+      renderActiveFlashcard();
+
+      // 3. Personal Tab: Quizzes
+      renderQuizzes(personal.quizzes || []);
+
+      // 4. Group Tab: Revision Summary
+      document.getElementById("groupRevisionSummaryText").innerHTML = escapeHtml(group.revision_summary || "No revision summary generated.").replace(/\n/g, "<br>");
+
+      // 5. Group Tab: Material Conflicts
+      const conflictsContainer = document.getElementById("materialConflictsList");
+      conflictsContainer.innerHTML = "";
+      const conflicts = group.material_conflicts || [];
+      document.getElementById("conflictCountBadge").textContent = `${conflicts.length} ${conflicts.length === 1 ? 'discrepancy' : 'discrepancies'}`;
+
+      if (conflicts.length === 0) {
+        conflictsContainer.innerHTML = `
+          <div class="p-4 rounded-lg bg-[var(--surface-muted)] text-center text-xs text-[var(--text-secondary)]">
+            ✓ No contradictory material or conflicting claims detected in this source.
+          </div>
+        `;
+      } else {
+        conflicts.forEach((conflict) => {
+          const card = document.createElement("div");
+          card.className = "p-3.5 rounded-lg border border-amber-500/30 bg-amber-500/5 text-sm flex items-start gap-3";
+          card.innerHTML = `
+            <span class="text-amber-600 font-bold text-base leading-none mt-0.5">⚠</span>
+            <div class="text-[var(--text-primary)] leading-relaxed text-xs md:text-sm">${escapeHtml(conflict)}</div>
+          `;
+          conflictsContainer.appendChild(card);
+        });
+      }
+
+      // 6. Group Tab: Unanswered Queries
+      const queriesContainer = document.getElementById("unansweredQueriesList");
+      queriesContainer.innerHTML = "";
+      const queries = group.unanswered_queries || [];
+      document.getElementById("queriesCountBadge").textContent = `${queries.length} queries`;
+
+      if (queries.length === 0) {
+        queriesContainer.innerHTML = `
+          <div class="p-4 rounded-lg bg-[var(--surface-muted)] text-center text-xs text-[var(--text-secondary)]">
+            ✓ No unresolved queries flagged.
+          </div>
+        `;
+      } else {
+        queries.forEach((query) => {
+          const card = document.createElement("div");
+          card.className = "p-3.5 rounded-lg border border-sky-500/30 bg-sky-500/5 text-sm flex items-start gap-3";
+          card.innerHTML = `
+            <span class="text-sky-600 font-bold text-base leading-none mt-0.5">❓</span>
+            <div class="text-[var(--text-primary)] leading-relaxed text-xs md:text-sm">${escapeHtml(query)}</div>
+          `;
+          queriesContainer.appendChild(card);
+        });
+      }
+
+      // 7. Group Tab: Next Session Tasks
+      renderGroupTasks(group.next_session_tasks || []);
+
+      // Reveal results section & scroll
+      resultsSection.classList.remove("hidden");
+      resultsSection.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+
+    // ==========================================
+    // Flashcards Controller
+    // ==========================================
+    function renderActiveFlashcard() {
+      if (!flashcardsList || flashcardsList.length === 0) {
+        flashcardQuestionText.textContent = "No flashcards generated for this document.";
+        flashcardAnswerText.textContent = "No answer available.";
+        flashcardCounter.textContent = "0 / 0";
+        prevFlashcardBtn.disabled = true;
+        nextFlashcardBtn.disabled = true;
+        flipFlashcardBtn.disabled = true;
+        return;
+      }
+
+      const card = flashcardsList[activeFlashcardIndex];
+      isFlipped = false;
+      flashcardInner.classList.remove("is-flipped");
+
+      flashcardQuestionText.textContent = card.question;
+      flashcardAnswerText.textContent = card.answer;
+      flashcardCounter.textContent = `${activeFlashcardIndex + 1} / ${flashcardsList.length}`;
+
+      prevFlashcardBtn.disabled = activeFlashcardIndex === 0;
+      nextFlashcardBtn.disabled = activeFlashcardIndex === flashcardsList.length - 1;
+      flipFlashcardBtn.disabled = false;
+    }
+
+    function toggleFlip() {
+      if (flashcardsList.length === 0) return;
+      isFlipped = !isFlipped;
+      flashcardInner.classList.toggle("is-flipped", isFlipped);
+    }
+
+    activeFlashcard.addEventListener("click", toggleFlip);
+    flipFlashcardBtn.addEventListener("click", toggleFlip);
+
+    prevFlashcardBtn.addEventListener("click", () => {
+      if (activeFlashcardIndex > 0) {
+        activeFlashcardIndex--;
+        renderActiveFlashcard();
+      }
+    });
+
+    nextFlashcardBtn.addEventListener("click", () => {
+      if (activeFlashcardIndex < flashcardsList.length - 1) {
+        activeFlashcardIndex++;
+        renderActiveFlashcard();
+      }
+    });
+
+    shuffleFlashcardsBtn.addEventListener("click", () => {
+      if (flashcardsList.length <= 1) return;
+      for (let i = flashcardsList.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [flashcardsList[i], flashcardsList[j]] = [flashcardsList[j], flashcardsList[i]];
+      }
+      activeFlashcardIndex = 0;
+      renderActiveFlashcard();
+    });
+
+    // Keyboard navigation for Flashcards
+    window.addEventListener("keydown", (e) => {
+      if (resultsSection.classList.contains("hidden")) return;
+      if (["input", "textarea"].includes(document.activeElement.tagName.toLowerCase())) return;
+
+      if (e.code === "Space") {
+        e.preventDefault();
+        toggleFlip();
+      } else if (e.code === "ArrowLeft") {
+        if (activeFlashcardIndex > 0) {
+          activeFlashcardIndex--;
+          renderActiveFlashcard();
+        }
+      } else if (e.code === "ArrowRight") {
+        if (activeFlashcardIndex < flashcardsList.length - 1) {
+          activeFlashcardIndex++;
+          renderActiveFlashcard();
+        }
+      }
+    });
+
+    // ==========================================
+    // Quizzes Controller
+    // ==========================================
+    function renderQuizzes(quizzes) {
+      const container = document.getElementById("quizQuestionsContainer");
+      container.innerHTML = "";
+
+      const totalCount = quizzes.length;
+      document.getElementById("quizTotalCount").textContent = totalCount;
+      document.getElementById("quizScoreCount").textContent = "0";
+
+      if (totalCount === 0) {
+        container.innerHTML = `<p class="text-sm text-[var(--text-secondary)]">No quiz questions generated for this document.</p>`;
+        return;
+      }
+
+      quizzes.forEach((q, qIndex) => {
+        const card = document.createElement("div");
+        card.className = "surface-panel p-5 rounded-xl border border-[var(--border)] quiz-card";
+        card.id = `quizCard_${q.id}`;
+
+        const optionsHtml = (q.options || []).map((opt, optIndex) => {
+          return `
+            <button
+              type="button"
+              class="quiz-option-btn"
+              data-qid="${q.id}"
+              data-opt-index="${optIndex}"
+              data-opt-text="${escapeHtml(opt)}"
+            >
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full border border-[var(--border)] text-xs font-bold shrink-0">
+                ${String.fromCharCode(65 + optIndex)}
+              </span>
+              <span class="opt-label flex-1">${escapeHtml(opt)}</span>
+            </button>
+          `;
+        }).join("");
+
+        card.innerHTML = `
+          <div class="flex items-start justify-between gap-4 mb-3">
+            <h4 class="font-bold text-sm text-[var(--text-primary)] leading-snug">
+              <span class="text-[var(--brand-primary)]">Q${qIndex + 1}.</span> ${escapeHtml(q.question)}
+            </h4>
+            <span class="quiz-status-pill text-xs px-2 py-0.5 rounded font-semibold hidden" id="quizStatus_${q.id}"></span>
+          </div>
+
+          <div class="space-y-2 mb-4" id="quizOptionsContainer_${q.id}">
+            ${optionsHtml}
+          </div>
+
+          <!-- Explanation (initially hidden) -->
+          <div id="quizExplanation_${q.id}" class="hidden p-3.5 rounded-lg bg-[var(--surface-muted)] border border-[var(--border)] text-xs text-[var(--text-primary)] mb-3">
+            <strong class="block font-semibold mb-1 text-[var(--brand-forest)]">Explanation:</strong>
+            <span>${escapeHtml(q.explanation || "No explanation provided.")}</span>
+          </div>
+
+          <!-- Submit answer button -->
+          <div class="flex items-center justify-end">
+            <button
+              type="button"
+              class="button button-primary button-small submit-quiz-btn"
+              data-qid="${q.id}"
+              id="submitQuizBtn_${q.id}"
+              disabled
+            >
+              Check Answer
+            </button>
+          </div>
+        `;
+
+        container.appendChild(card);
+      });
+
+      // Attach click listeners to quiz option buttons
+      container.querySelectorAll(".quiz-option-btn").forEach((btn) => {
+        btn.addEventListener("click", function () {
+          const qid = this.dataset.qid;
+          if (quizSubmitted[qid]) return; // locked once submitted
+
+          const optIndex = parseInt(this.dataset.optIndex, 10);
+          quizUserAnswers[qid] = {
+            index: optIndex,
+            text: this.dataset.optText,
+          };
+
+          // Deselect siblings
+          const parent = document.getElementById(`quizOptionsContainer_${qid}`);
+          parent.querySelectorAll(".quiz-option-btn").forEach((b) => b.classList.remove("selected"));
+          this.classList.add("selected");
+
+          // Enable submit button
+          const submitBtn = document.getElementById(`submitQuizBtn_${qid}`);
+          if (submitBtn) submitBtn.disabled = false;
+        });
+      });
+
+      // Attach click listeners to quiz submit buttons
+      container.querySelectorAll(".submit-quiz-btn").forEach((btn) => {
+        btn.addEventListener("click", function () {
+          const qid = parseInt(this.dataset.qid, 10);
+          submitQuizAnswer(qid);
+        });
+      });
+    }
+
+    function submitQuizAnswer(qid) {
+      if (quizSubmitted[qid]) return;
+
+      const userChoice = quizUserAnswers[qid];
+      if (!userChoice) return;
+
+      const personal = currentStudyData?.personal_study_guide || {};
+      const q = (personal.quizzes || []).find((item) => item.id === qid);
+      if (!q) return;
+
+      quizSubmitted[qid] = true;
+
+      const optionsParent = document.getElementById(`quizOptionsContainer_${qid}`);
+      const optionButtons = optionsParent.querySelectorAll(".quiz-option-btn");
+      const submitBtn = document.getElementById(`submitQuizBtn_${qid}`);
+      const statusPill = document.getElementById(`quizStatus_${qid}`);
+      const explanationDiv = document.getElementById(`quizExplanation_${qid}`);
+
+      // Disable all option buttons and submit button
+      submitBtn.disabled = true;
+      submitBtn.classList.add("hidden");
+
+      // Determine match
+      const correctText = (q.correct_answer || "").trim().toLowerCase();
+      const chosenText = (userChoice.text || "").trim().toLowerCase();
+
+      // Flexible matching: either direct string equality, starts-with key (e.g. "A)" matching option A), or normalized match
+      let isCorrect = false;
+
+      optionButtons.forEach((btn, idx) => {
+        btn.disabled = true;
+        const btnText = (btn.dataset.optText || "").trim().toLowerCase();
+        const letter = String.fromCharCode(65 + idx).toLowerCase();
+
+        // Check if this option is the correct one
+        const isThisCorrect =
+          btnText === correctText ||
+          correctText.startsWith(letter + ")") ||
+          correctText === letter ||
+          correctText.includes(btnText) ||
+          btnText.includes(correctText);
+
+        if (isThisCorrect) {
+          btn.classList.add("correct");
+          if (idx === userChoice.index) {
+            isCorrect = true;
+          }
+        } else if (idx === userChoice.index) {
+          btn.classList.add("incorrect");
+        }
+      });
+
+      // Update status pill
+      statusPill.classList.remove("hidden");
+      if (isCorrect) {
+        statusPill.textContent = "✓ Correct";
+        statusPill.className = "quiz-status-pill text-xs px-2 py-0.5 rounded font-semibold bg-emerald-500/10 text-emerald-600";
+      } else {
+        statusPill.textContent = "✗ Incorrect";
+        statusPill.className = "quiz-status-pill text-xs px-2 py-0.5 rounded font-semibold bg-red-500/10 text-red-600";
+      }
+
+      // Show explanation
+      if (explanationDiv) {
+        explanationDiv.classList.remove("hidden");
+      }
+
+      // Update score counter
+      updateQuizScore();
+    }
+
+    function updateQuizScore() {
+      let score = 0;
+      const personal = currentStudyData?.personal_study_guide || {};
+      const quizzes = personal.quizzes || [];
+
+      quizzes.forEach((q) => {
+        if (quizSubmitted[q.id]) {
+          const userChoice = quizUserAnswers[q.id];
+          if (!userChoice) return;
+          const correctText = (q.correct_answer || "").trim().toLowerCase();
+          const chosenText = (userChoice.text || "").trim().toLowerCase();
+          const letter = String.fromCharCode(65 + userChoice.index).toLowerCase();
+
+          if (
+            chosenText === correctText ||
+            correctText.startsWith(letter + ")") ||
+            correctText === letter ||
+            correctText.includes(chosenText) ||
+            chosenText.includes(correctText)
+          ) {
+            score++;
+          }
+        }
+      });
+
+      document.getElementById("quizScoreCount").textContent = score;
+    }
+
+    document.getElementById("resetQuizBtn").addEventListener("click", () => {
+      if (currentStudyData && currentStudyData.personal_study_guide) {
+        quizUserAnswers = {};
+        quizSubmitted = {};
+        renderQuizzes(currentStudyData.personal_study_guide.quizzes || []);
+      }
+    });
+
+    // ==========================================
+    // Group Tasks Controller
+    // ==========================================
+    function renderGroupTasks(tasks) {
+      const container = document.getElementById("groupTasksList");
+      container.innerHTML = "";
+
+      const total = tasks.length;
+      document.getElementById("tasksTotalCount").textContent = total;
+
+      if (total === 0) {
+        container.innerHTML = `<p class="text-sm text-[var(--text-secondary)]">No next session tasks created.</p>`;
+        document.getElementById("tasksCompletedCount").textContent = "0";
+        return;
+      }
+
+      let completedCount = 0;
+
+      tasks.forEach((t) => {
+        if (t.is_completed) completedCount++;
+
+        const row = document.createElement("div");
+        row.className = `task-item p-3 rounded-lg border border-[var(--border)] bg-[var(--surface)] flex items-start gap-3 ${
+          t.is_completed ? "completed opacity-70" : ""
+        }`;
+        row.id = `taskRow_${t.id}`;
+
+        row.innerHTML = `
+          <input
+            type="checkbox"
+            id="taskCheck_${t.id}"
+            class="mt-1 w-4 h-4 rounded border-[var(--border)] text-[var(--brand-primary)] cursor-pointer"
+            ${t.is_completed ? "checked" : ""}
+            data-task-id="${t.id}"
+          />
+          <div class="flex-1">
+            <label for="taskCheck_${t.id}" class="task-title font-semibold text-sm text-[var(--text-primary)] cursor-pointer">
+              ${escapeHtml(t.title)}
+            </label>
+            ${
+              t.description
+                ? `<p class="text-xs text-[var(--text-secondary)] mt-0.5">${escapeHtml(t.description)}</p>`
+                : ""
+            }
+          </div>
+          ${
+            t.due_date
+              ? `<span class="text-xs px-2 py-0.5 rounded bg-[var(--surface-muted)] text-[var(--text-secondary)] font-medium">Due: ${t.due_date}</span>`
+              : ""
+          }
+        `;
+
+        container.appendChild(row);
+      });
+
+      document.getElementById("tasksCompletedCount").textContent = completedCount;
+
+      // Checkbox toggle listener
+      container.querySelectorAll('input[type="checkbox"]').forEach((checkbox) => {
+        checkbox.addEventListener("change", async function () {
+          const taskId = this.dataset.taskId;
+          const isChecked = this.checked;
+          const taskRow = document.getElementById(`taskRow_${taskId}`);
+
+          if (taskRow) {
+            taskRow.classList.toggle("completed", isChecked);
+            taskRow.classList.toggle("opacity-70", isChecked);
+          }
+
+          // Recalculate count
+          const checkedCount = container.querySelectorAll('input[type="checkbox"]:checked').length;
+          document.getElementById("tasksCompletedCount").textContent = checkedCount;
+
+          // Call backend toggle API
+          try {
+            await fetch(`/study-assistant/api/tasks/${taskId}/toggle/`, {
+              method: "POST",
+              headers: {
+                "X-CSRFToken": getCsrfToken(),
+              },
+            });
+          } catch (err) {
+            console.error("Failed to toggle task completion:", err);
+          }
+        });
+      });
+    }
+
+    // ==========================================
+    // Recent Documents Quick-Loader
+    // ==========================================
+    document.querySelectorAll(".recent-doc-item").forEach((btn) => {
+      btn.addEventListener("click", function () {
+        const docId = this.dataset.docId;
+        loadDocumentById(docId);
+      });
+    });
+
+    async function loadDocumentById(docId) {
+      hideError();
+      setLoading(true);
+
+      try {
+        const res = await fetch(`/study-assistant/api/documents/${docId}/`);
+        if (!res.ok) {
+          throw new Error("Failed to load study document.");
+        }
+        const data = await res.json();
+        renderStudyDocument(data);
+      } catch (err) {
+        showError(err.message, "Load Error");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    function appendRecentDocumentPill(doc) {
+      const container = document.getElementById("recentDocsList");
+      const noRecent = document.getElementById("noRecentDocs");
+      if (noRecent) noRecent.remove();
+
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "recent-doc-item w-full text-left p-3 rounded-lg border border-[var(--brand-primary)] bg-[var(--surface-muted)] transition";
+      btn.dataset.docId = doc.id;
+      btn.innerHTML = `
+        <div class="flex items-center justify-between">
+          <span class="font-medium text-sm text-[var(--text-primary)] truncate max-w-[180px]">${escapeHtml(doc.title)}</span>
+          <span class="status-badge status-completed text-[11px]">Ready</span>
+        </div>
+        <div class="text-[11px] text-[var(--text-secondary)] mt-1 flex items-center justify-between">
+          <span>Just now</span>
+        </div>
+      `;
+      btn.addEventListener("click", () => loadDocumentById(doc.id));
+      container.insertBefore(btn, container.firstChild);
+    }
+
+    // Copy Summary Button
+    document.getElementById("copySummaryBtn").addEventListener("click", () => {
+      if (!currentStudyData) return;
+      const personal = currentStudyData.personal_study_guide || {};
+      const fullText = `### ${currentStudyData.document.title}\n\n#### Summary\n${personal.summary}\n\n#### Explanation\n${personal.explanation}\n\n#### Structured Notes\n${(personal.structured_notes || []).map((n) => "- " + n).join("\n")}`;
+
+      navigator.clipboard.writeText(fullText).then(() => {
+        const origText = document.getElementById("copySummaryBtn").textContent;
+        document.getElementById("copySummaryBtn").textContent = "✓ Copied!";
+        setTimeout(() => {
+          document.getElementById("copySummaryBtn").textContent = origText;
+        }, 2000);
+      });
+    });
+
+    // Utility: HTML Escaper
+    function escapeHtml(string) {
+      if (!string) return "";
+      const div = document.createElement("div");
+      div.textContent = string;
+      return div.innerHTML;
+    }
+  });
+</script>
+{% endblock %}

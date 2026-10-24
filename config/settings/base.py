@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 load_dotenv(BASE_DIR / ".env")
+load_dotenv(BASE_DIR / ".env.local")
 
 
 def env_bool(name: str, default: bool = False) -> bool:
@@ -25,6 +26,9 @@ if not SECRET_KEY:
 ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS")
 CSRF_TRUSTED_ORIGINS = env_list("DJANGO_CSRF_TRUSTED_ORIGINS")
 
+CLERK_SECRET_KEY = os.environ.get("CLERK_SECRET_KEY", "")
+CLERK_PUBLISHABLE_KEY = os.environ.get("CLERK_PUBLISHABLE_KEY", "") or os.environ.get("NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY", "")
+
 INSTALLED_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",
@@ -32,14 +36,18 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    # Dependency direction: accounts <- core <- vault <- sharing
+    # Dependency direction: accounts <- core <- vault <- sharing <- study_assistant
     "apps.accounts",
     "apps.core",
     "apps.vault",
     "apps.planner",
     "apps.sharing",
     "channels",
+    "apps.study_assistant",
 ]
+
+OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY", "")
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
@@ -76,6 +84,7 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
+                "apps.accounts.context_processors.clerk_context",
             ],
         },
     }
