@@ -78,6 +78,10 @@
             <span class="nav-icon" aria-hidden="true">⇄</span>
             <span>Shared with me</span>
           </a>
+          <a href="{% url 'study_assistant:dashboard' %}" title="AI Study Assistant" aria-label="AI Study Assistant" class="nav-link{% if request.resolver_match.namespace == 'study_assistant' %} nav-link-active{% endif %}"{% if request.resolver_match.namespace == 'study_assistant' %} aria-current="page"{% endif %}>
+            <span class="nav-icon" aria-hidden="true">✦</span>
+            <span>AI Study Assistant</span>
+          </a>
           <a href="{% url 'core:activity' %}" title="Activity History" aria-label="Activity History" class="nav-link{% if request.resolver_match.namespace == 'core' and request.resolver_match.url_name == 'activity' %} nav-link-active{% endif %}"{% if request.resolver_match.namespace == 'core' and request.resolver_match.url_name == 'activity' %} aria-current="page"{% endif %}>
             <span class="nav-icon" aria-hidden="true">◷</span>
             <span>Activity History</span>

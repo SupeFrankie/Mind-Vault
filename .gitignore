@@ -1,4 +1,7 @@
 .env
+.env.local
+.env.*.local
+.env*.local
 media/
 .venv/
 __pycache__/

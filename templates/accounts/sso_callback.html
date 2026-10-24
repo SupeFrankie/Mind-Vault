@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+{% block title %}Authenticating | MindVault{% endblock %}
+{% block page_label %}Workspace Access{% endblock %}
+
+{% block content %}
+<div class="auth-page" style="min-height: 60vh; display: flex; align-items: center; justify-content: center;">
+  <section class="surface-panel auth-panel" id="transition-card" style="text-align: center; max-width: 440px; width: 100%; padding: 3rem 2rem; border-radius: 16px; animation: mv-fade-in 0.3s ease-out;">
+    <div style="position: relative; width: 56px; height: 56px; margin: 0 auto 1.5rem auto;">
+      <div class="pulse-ring"></div>
+      <div style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;">
+        <svg style="width: 28px; height: 28px; color: var(--brand-primary); animation: mv-spin 1.2s linear infinite;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <circle style="opacity: 0.2;" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3"></circle>
+          <path style="opacity: 0.9;" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+      </div>
+    </div>
+
+    <h2 id="auth-heading" style="font-size: 1.35rem; margin-bottom: 0.5rem; font-weight: 700;">Connecting to MindVault...</h2>
+    <p id="auth-status" style="color: var(--text-secondary); font-size: 0.95rem; line-height: 1.5; margin: 0;">
+      Preparing your academic workspace.
+    </p>
+
+    <!-- Subtle animated progress bar -->
+    <div style="width: 100%; height: 4px; background: var(--surface-muted); border-radius: 999px; overflow: hidden; margin-top: 2rem;">
+      <div id="progress-bar" style="width: 40%; height: 100%; background: var(--brand-primary); border-radius: 999px; animation: mv-indeterminate 1.4s ease-in-out infinite;"></div>
+    </div>
+  </section>
+</div>
+
+<style>
+@keyframes mv-fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes mv-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes mv-indeterminate {
+  0% { transform: translateX(-100%) scaleX(0.2); }
+  50% { transform: translateX(50%) scaleX(0.8); }
+  100% { transform: translateX(200%) scaleX(0.2); }
+}
+
+.pulse-ring {
+  position: absolute;
+  inset: -6px;
+  border-radius: 50%;
+  border: 2px solid var(--brand-primary);
+  opacity: 0.3;
+  animation: mv-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes mv-pulse {
+  0%, 100% { transform: scale(1); opacity: 0.3; }
+  50% { transform: scale(1.15); opacity: 0; }
+}
+</style>
+
+<script async crossorigin="anonymous"
+  data-clerk-publishable-key="{{ CLERK_PUBLISHABLE_KEY }}"
+  src="https://cdn.jsdelivr.net/npm/@clerk/clerk-js@latest/dist/clerk.browser.js"
+  type="text/javascript"></script>
+
+<script>
+(function() {
+  const statusEl = document.getElementById('auth-status');
+  const headingEl = document.getElementById('auth-heading');
+  let isExchanging = false;
+
+  async function syncSessionWithDjango() {
+    if (isExchanging) return true;
+    if (!window.Clerk || !window.Clerk.session) return false;
+    isExchanging = true;
+
+    try {
+      const token = await window.Clerk.session.getToken();
+      if (!token) return false;
+
+      const response = await fetch('{% url "accounts:clerk_login" %}', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + token
+        },
+        body: JSON.stringify({ token: token })
+      });
+
+      const data = await response.json();
+      if (data.status === 'success') {
+        headingEl.textContent = 'Welcome back!';
+        statusEl.textContent = 'Entering workspace...';
+        // Use replace so user cannot navigate back into the redirect loop
+        window.location.replace(data.redirect_url || '/');
+        return true;
+      } else {
+        isExchanging = false;
+        statusEl.textContent = 'Authentication error: ' + (data.message || 'Unknown error');
+        return false;
+      }
+    } catch (err) {
+      isExchanging = false;
+      console.error('Session sync error:', err);
+      statusEl.textContent = 'Connection error: ' + err.message;
+      return false;
+    }
+  }
+
+  window.addEventListener('load', async function() {
+    try {
+      if (!window.Clerk) {
+        statusEl.textContent = 'Loading secure authentication...';
+        let retries = 0;
+        const interval = setInterval(async () => {
+          retries++;
+          if (window.Clerk) {
+            clearInterval(interval);
+            await runClerkFlow();
+          } else if (retries > 25) {
+            clearInterval(interval);
+            statusEl.textContent = 'Authentication service took too long to load. Please refresh.';
+          }
+        }, 150);
+        return;
+      }
+      await runClerkFlow();
+    } catch (err) {
+      console.error('Clerk startup error:', err);
+      statusEl.textContent = 'Error: ' + (err.message || err);
+    }
+  });
+
+  async function runClerkFlow() {
+    await window.Clerk.load();
+
+    // Fast-path: session is already ready
+    if (window.Clerk.session) {
+      const success = await syncSessionWithDjango();
+      if (success) return;
+    }
+
+    // Process redirect callback with custom smooth navigation handler
+    try {
+      await window.Clerk.handleRedirectCallback({}, async function(to) {
+        const success = await syncSessionWithDjango();
+        if (!success) {
+          window.location.replace(to || '/');
+        }
+      });
+    } catch (cbErr) {
+      console.warn('handleRedirectCallback note:', cbErr);
+    }
+
+    // Check once more in case session populated after callback
+    if (window.Clerk.session) {
+      await syncSessionWithDjango();
+    }
+  }
+})();
+</script>
+{% endblock %}
